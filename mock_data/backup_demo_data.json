@@ -1,0 +1,244 @@
+{
+  "generated_at": "2025-08-10T17:44:24.549869",
+  "scenarios": {
+    "network_optimization": {
+      "description": "Network QoE improvement scenario",
+      "plays": [
+        {
+          "title": "Overnight capacity tune (MW)",
+          "area": "Network QoE",
+          "effort_points": 2,
+          "impact_score": 4,
+          "confidence": 0.8,
+          "kpi_targets": {
+            "QoE_MOS": 0.2,
+            "Network_Availability": 0.5
+          },
+          "dependencies": [],
+          "notes": "Largest negative mover linked to churn; peer gap present"
+        },
+        {
+          "title": "Peak hour load balancing",
+          "area": "Network QoE",
+          "effort_points": 3,
+          "impact_score": 5,
+          "confidence": 0.75,
+          "kpi_targets": {
+            "Peak_Capacity": 0.3,
+            "User_Experience": 0.4
+          },
+          "dependencies": [
+            "Overnight capacity tune (MW)"
+          ],
+          "notes": "Addresses peak congestion during business hours"
+        },
+        {
+          "title": "Edge caching optimization",
+          "area": "Network QoE",
+          "effort_points": 4,
+          "impact_score": 4,
+          "confidence": 0.7,
+          "kpi_targets": {
+            "Content_Delivery_Speed": 0.25,
+            "Bandwidth_Usage": -0.15
+          },
+          "dependencies": [],
+          "notes": "Improves content delivery and reduces bandwidth costs"
+        }
+      ],
+      "expected_outcome": "15% improvement in network performance metrics"
+    },
+    "customer_retention": {
+      "description": "Customer churn reduction scenario",
+      "plays": [
+        {
+          "title": "Proactive churn prevention",
+          "area": "Customer",
+          "effort_points": 3,
+          "impact_score": 5,
+          "confidence": 0.85,
+          "kpi_targets": {
+            "Churn_Rate": -0.3,
+            "Customer_Satisfaction": 0.4
+          },
+          "dependencies": [],
+          "notes": "AI-driven early warning system for at-risk customers"
+        },
+        {
+          "title": "Loyalty program enhancement",
+          "area": "Customer",
+          "effort_points": 2,
+          "impact_score": 3,
+          "confidence": 0.8,
+          "kpi_targets": {
+            "Customer_Lifetime_Value": 0.2,
+            "Retention_Rate": 0.15
+          },
+          "dependencies": [],
+          "notes": "Enhanced rewards and personalized offers"
+        }
+      ],
+      "expected_outcome": "8% reduction in customer churn rate"
+    },
+    "revenue_growth": {
+      "description": "Revenue optimization scenario",
+      "plays": [
+        {
+          "title": "Upsell campaign optimization",
+          "area": "Revenue",
+          "effort_points": 2,
+          "impact_score": 4,
+          "confidence": 0.75,
+          "kpi_targets": {
+            "ARPU": 0.25,
+            "Service_Adoption": 0.3
+          },
+          "dependencies": [],
+          "notes": "Targeted campaigns based on usage patterns"
+        },
+        {
+          "title": "Pricing strategy refinement",
+          "area": "Revenue",
+          "effort_points": 4,
+          "impact_score": 5,
+          "confidence": 0.7,
+          "kpi_targets": {
+            "Revenue_Growth": 0.35,
+            "Market_Share": 0.2
+          },
+          "dependencies": [],
+          "notes": "Competitive pricing analysis and optimization"
+        }
+      ],
+      "expected_outcome": "12% increase in ARPU and service adoption"
+    },
+    "operational_efficiency": {
+      "description": "Operational cost reduction scenario",
+      "plays": [
+        {
+          "title": "Automated ticket resolution",
+          "area": "Operations",
+          "effort_points": 5,
+          "impact_score": 4,
+          "confidence": 0.65,
+          "kpi_targets": {
+            "Resolution_Time": -0.4,
+            "Operational_Costs": -0.25
+          },
+          "dependencies": [],
+          "notes": "AI-powered ticket classification and routing"
+        },
+        {
+          "title": "Predictive maintenance",
+          "area": "Operations",
+          "effort_points": 3,
+          "impact_score": 4,
+          "confidence": 0.8,
+          "kpi_targets": {
+            "Equipment_Uptime": 0.3,
+            "Maintenance_Costs": -0.2
+          },
+          "dependencies": [],
+          "notes": "IoT sensors and ML for equipment health monitoring"
+        }
+      ],
+      "expected_outcome": "20% reduction in operational costs"
+    },
+    "usage_optimization": {
+      "description": "Network usage optimization scenario",
+      "plays": [
+        {
+          "title": "Data usage analytics",
+          "area": "Usage",
+          "effort_points": 2,
+          "impact_score": 3,
+          "confidence": 0.85,
+          "kpi_targets": {
+            "Data_Efficiency": 0.25,
+            "User_Insights": 0.4
+          },
+          "dependencies": [],
+          "notes": "Advanced analytics for usage pattern optimization"
+        },
+        {
+          "title": "Bandwidth optimization",
+          "area": "Usage",
+          "effort_points": 3,
+          "impact_score": 4,
+          "confidence": 0.75,
+          "kpi_targets": {
+            "Network_Efficiency": 0.3,
+            "Cost_Per_GB": -0.2
+          },
+          "dependencies": [],
+          "notes": "Dynamic bandwidth allocation based on demand"
+        }
+      ],
+      "expected_outcome": "25% improvement in network utilization"
+    }
+  },
+  "portfolio_optimizations": {
+    "budget_8_points": {
+      "selected_plays": [
+        "Overnight capacity tune (MW)",
+        "Proactive churn prevention",
+        "Upsell campaign optimization"
+      ],
+      "total_effort": 7,
+      "expected_effect": {
+        "QoE_MOS": 0.2,
+        "Churn_Rate": -0.3,
+        "ARPU": 0.25
+      },
+      "roi_score": 8.5,
+      "risk_score": 3.2
+    },
+    "budget_12_points": {
+      "selected_plays": [
+        "Overnight capacity tune (MW)",
+        "Peak hour load balancing",
+        "Proactive churn prevention",
+        "Upsell campaign optimization",
+        "Loyalty program enhancement"
+      ],
+      "total_effort": 12,
+      "expected_effect": {
+        "QoE_MOS": 0.4,
+        "Peak_Capacity": 0.3,
+        "Churn_Rate": -0.3,
+        "ARPU": 0.25,
+        "Customer_Lifetime_Value": 0.2
+      },
+      "roi_score": 9.2,
+      "risk_score": 4.1
+    },
+    "budget_16_points": {
+      "selected_plays": [
+        "Overnight capacity tune (MW)",
+        "Peak hour load balancing",
+        "Edge caching optimization",
+        "Proactive churn prevention",
+        "Upsell campaign optimization",
+        "Loyalty program enhancement",
+        "Data usage analytics"
+      ],
+      "total_effort": 16,
+      "expected_effect": {
+        "QoE_MOS": 0.6,
+        "Peak_Capacity": 0.3,
+        "Content_Delivery_Speed": 0.25,
+        "Churn_Rate": -0.3,
+        "ARPU": 0.25,
+        "Customer_Lifetime_Value": 0.2,
+        "Data_Efficiency": 0.25
+      },
+      "roi_score": 9.8,
+      "risk_score": 5.3
+    }
+  },
+  "executive_summaries": {
+    "conservative": "\n            **Conservative Strategy (8 Points)**\n            \n            Focus on high-confidence, low-risk plays that deliver immediate impact:\n            \u2022 Network capacity optimization to improve QoE and reduce churn\n            \u2022 Proactive customer retention to protect revenue base\n            \u2022 Targeted upselling to increase ARPU without major investment\n            \n            Expected outcomes: 15% network improvement, 8% churn reduction, 25% ARPU increase\n            Risk level: Low (3.2/10)\n            ",
+    "balanced": "\n            **Balanced Strategy (12 Points)**\n            \n            Balanced approach combining quick wins with strategic initiatives:\n            \u2022 Enhanced network optimization including peak hour management\n            \u2022 Comprehensive customer retention and loyalty enhancement\n            \u2022 Revenue optimization through targeted campaigns\n            \n            Expected outcomes: 25% network improvement, 10% churn reduction, 30% revenue growth\n            Risk level: Medium (4.1/10)\n            ",
+    "aggressive": "\n            **Aggressive Strategy (16 Points)**\n            \n            Comprehensive transformation addressing all major areas:\n            \u2022 Full network optimization including edge caching\n            \u2022 Complete customer lifecycle management\n            \u2022 Advanced analytics and operational efficiency\n            \u2022 Revenue maximization across all channels\n            \n            Expected outcomes: 35% network improvement, 15% churn reduction, 40% revenue growth\n            Risk level: Medium-High (5.3/10)\n            "
+  }
+}

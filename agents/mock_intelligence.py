@@ -44,6 +44,12 @@ class MockIntelligenceEngine:
                 "roi": 0.30,
                 "risk": 0.15
             },
+            SubjectArea.NETWORK_QOE: {
+                "impact": 0.40,
+                "effort": 0.25,
+                "roi": 0.35,
+                "risk": 0.20
+            },
             SubjectArea.CUSTOMER: {
                 "impact": 0.40,
                 "effort": 0.15,
@@ -75,6 +81,8 @@ class MockIntelligenceEngine:
         
         if subject_area == SubjectArea.NETWORK:
             return self._generate_network_plays(count)
+        elif subject_area == SubjectArea.NETWORK_QOE:
+            return self._generate_network_qoe_plays(count)
         elif subject_area == SubjectArea.CUSTOMER:
             return self._generate_customer_plays(count)
         elif subject_area == SubjectArea.REVENUE:
@@ -165,6 +173,74 @@ class MockIntelligenceEngine:
         ]
         
         return self._create_plays_from_templates(network_play_templates, SubjectArea.NETWORK, count)
+    
+    def _generate_network_qoe_plays(self, count: int) -> List[Play]:
+        """Generate network QoE-focused plays with market-aware scoring"""
+        
+        network_qoe_play_templates = [
+            {
+                "title": "Network Quality of Experience Monitoring & Optimization",
+                "description": "Implement comprehensive QoE monitoring across all network layers with real-time optimization to improve user satisfaction scores by 30%",
+                "category": PlayCategory.PERFORMANCE_OPTIMIZATION,
+                "base_impact": 8.8,
+                "base_effort": 7.5,
+                "base_roi": 8.2,
+                "base_risk": 4.5,
+                "base_cost": 1450000.0,
+                "base_duration": 11,
+                "tags": ["qoe-monitoring", "network-optimization", "user-experience", "real-time"]
+            },
+            {
+                "title": "End-to-End Service Quality Assurance",
+                "description": "Holistic service quality monitoring from network core to user device with automated issue resolution and SLA management",
+                "category": PlayCategory.PERFORMANCE_OPTIMIZATION,
+                "base_impact": 8.5,
+                "base_effort": 8.2,
+                "base_roi": 7.8,
+                "base_risk": 5.0,
+                "base_cost": 1850000.0,
+                "base_duration": 13,
+                "tags": ["service-quality", "sla-management", "automation", "end-to-end"]
+            },
+            {
+                "title": "User Experience Analytics & Optimization",
+                "description": "Advanced UX analytics with A/B testing and continuous optimization to improve customer satisfaction and reduce support tickets",
+                "category": PlayCategory.PERFORMANCE_OPTIMIZATION,
+                "base_impact": 7.8,
+                "base_effort": 6.5,
+                "base_roi": 7.5,
+                "base_risk": 3.8,
+                "base_cost": 950000.0,
+                "base_duration": 9,
+                "tags": ["ux-analytics", "ab-testing", "optimization", "customer-satisfaction"]
+            },
+            {
+                "title": "Network Performance Benchmarking & Improvement",
+                "description": "Comprehensive network performance benchmarking against industry standards with targeted improvement initiatives",
+                "category": PlayCategory.PERFORMANCE_OPTIMIZATION,
+                "base_impact": 7.5,
+                "base_effort": 6.8,
+                "base_roi": 7.2,
+                "base_risk": 4.2,
+                "base_cost": 780000.0,
+                "base_duration": 8,
+                "tags": ["benchmarking", "performance-improvement", "industry-standards", "targeted"]
+            },
+            {
+                "title": "Predictive Network Issue Prevention",
+                "description": "ML-based predictive analytics to identify and prevent network issues before they impact user experience",
+                "category": PlayCategory.PERFORMANCE_OPTIMIZATION,
+                "base_impact": 8.2,
+                "base_effort": 7.8,
+                "base_roi": 8.0,
+                "base_risk": 4.8,
+                "base_cost": 1250000.0,
+                "base_duration": 10,
+                "tags": ["predictive-analytics", "ml", "issue-prevention", "proactive"]
+            }
+        ]
+        
+        return self._create_plays_from_templates(network_qoe_play_templates, SubjectArea.NETWORK_QOE, count)
     
     def _generate_customer_plays(self, count: int) -> List[Play]:
         """Generate customer-focused plays with market-aware scoring"""

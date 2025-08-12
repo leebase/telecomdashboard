@@ -29,6 +29,7 @@ class PlayCategory(str, Enum):
 class SubjectArea(str, Enum):
     """Business subject areas for analysis"""
     NETWORK = "network"
+    NETWORK_QOE = "network_qoe"
     CUSTOMER = "customer"
     REVENUE = "revenue"
     USAGE = "usage"
@@ -195,6 +196,15 @@ class Portfolio:
         for play in self.selected_plays:
             risk_level = self._get_risk_level(play.risk_score)
             self.risk_distribution[risk_level] = self.risk_distribution.get(risk_level, 0) + 1
+
+    def calculate_metrics(self):
+        """Public method to (re)calculate portfolio metrics.
+
+        Exposes metric recomputation for callers that need to update metrics after
+        mutating the underlying plays. Delegates to the internal implementation to
+        preserve a single source of truth.
+        """
+        self._calculate_portfolio_metrics()
     
     def _get_risk_level(self, risk_score: float) -> str:
         """Convert risk score to risk level"""

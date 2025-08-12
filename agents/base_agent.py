@@ -21,6 +21,7 @@ from models.play_models import (
     SubjectArea,
     WorkflowStatus
 )
+from agents.network_agent import NetworkAgent
 
 
 class BaseAgent(ABC):
@@ -223,13 +224,16 @@ class SubjectAreaAgent(BaseAgent):
     
     def _execute_agent_logic(self, task: str):
         """Execute subject area analysis logic using mock intelligence"""
-        self._log_execution("Starting subject area analysis", "INFO")
+        # Explicit start marker for stub agents
+        self._log_execution("START: Subject area analysis", "INFO")
         
         # Simulate work and generate plays using the mock intelligence engine
-        self._simulate_work(2.0, "Analyzing business data", 8)
+        # Extend duration and steps to provide smoother, visible progress in the UI
+        self._simulate_work(10.0, "Analyzing business data", 100)
         self._generate_intelligent_plays()
         
-        self._log_execution("Subject area analysis complete", "INFO")
+        # Explicit finish marker for stub agents
+        self._log_execution("FINISH: Subject area analysis", "INFO")
     
     def _generate_intelligent_plays(self):
         """Generate intelligent plays using the mock intelligence engine"""
@@ -335,6 +339,8 @@ class AgentFactory:
     @staticmethod
     def create_subject_area_agent(subject_area: SubjectArea) -> SubjectAreaAgent:
         """Create a subject area agent"""
+        if subject_area == SubjectArea.NETWORK:
+            return NetworkAgent()
         return SubjectAreaAgent(subject_area)
     
     @staticmethod

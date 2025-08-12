@@ -28,17 +28,17 @@ def render_ai_insights_panel(tab_name, days=30):
                 prompt = generate_ai_prompt(tab_name, bundled_data)
                 try:
                     insights = llm.generate_insights(prompt)
-                    if insights:
-                        # Validate insights structure before formatting
-                        if isinstance(insights, dict) and all(key in insights for key in ['summary', 'key_insights', 'trends', 'recommended_actions']):
-                            st.session_state[f'insights_{tab_name}'] = llm.format_insights_for_display(insights)
-                            st.session_state[f'raw_insights_{tab_name}'] = insights
-                        else:
-                            st.error("⚠️ Invalid insights format received. Please try again.")
-                            st.session_state[f'insights_{tab_name}'] = None
-                            st.session_state[f'raw_insights_{tab_name}'] = None
+                    if isinstance(insights, dict):
+                        # Always route through formatter which tolerates partial structures
+                        st.session_state[f'insights_{tab_name}'] = llm.format_insights_for_display(insights)
+                        st.session_state[f'raw_insights_{tab_name}'] = insights
+                        # Surface service-side error softly if present
+                        if insights.get('error'):
+                            st.warning("AI service returned a fallback response; details available in raw insights.")
                     else:
                         st.error("⚠️ Failed to generate insights. Please try again.")
+                        st.session_state[f'insights_{tab_name}'] = None
+                        st.session_state[f'raw_insights_{tab_name}'] = None
                 except Exception as e:
                     st.error(f"⚠️ Error generating insights: {str(e)}")
                     st.session_state[f'insights_{tab_name}'] = None
