@@ -1,8 +1,18 @@
+from pathlib import Path
+import sys
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import altair as alt
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
 # Explicit imports for better maintainability and IDE support
 from kpi_components import (
     render_metric_card,
@@ -43,10 +53,19 @@ from database_connection import TelecomDatabase
 from config_manager import get_config, get_ui_config, get_database_config
 from health_check import health_checker, feature_flags
 from logging_config import configure_app_logging, get_logger
+from ui.runtime_switch import is_metadata_enabled
 
 # Configure logging
 configure_app_logging()
 logger = get_logger('application')
+
+if is_metadata_enabled():
+    from ui.metadata_runtime_app import render_metadata_dashboard
+
+    logger.info("USE_METADATA flag enabled; rendering metadata runtime")
+    render_metadata_dashboard()
+    st.stop()
+
 
 # Import version information
 from __version__ import APP_VERSION

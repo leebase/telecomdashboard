@@ -175,10 +175,25 @@ def render_bar_chart(df, title, y_label="Value", horizontal=False):
     """
     Render a theme-appropriate bar chart using Altair
     """
+    # Altair requires text-based titles; coerce and fall back when metadata omits them
+    if isinstance(title, str):
+        title_text = title.strip() or "Bar Chart"
+    elif title is None:
+        title_text = "Bar Chart"
+    else:
+        title_text = str(title)
+
+    if isinstance(y_label, str):
+        y_axis_title = y_label.strip() or "Value"
+    elif y_label is None:
+        y_axis_title = "Value"
+    else:
+        y_axis_title = str(y_label)
+
     if df is None or df.empty:
-        st.warning(f"No data available for {title}")
+        st.warning(f"No data available for {title_text}")
         return
-    
+
     # Get current theme to determine colors
     try:
         from theme_manager import get_current_theme
@@ -199,7 +214,7 @@ def render_bar_chart(df, title, y_label="Value", horizontal=False):
             cornerRadiusTopRight=3,
             color=bar_color
         ).encode(
-            x=alt.X('value:Q', title=y_label, axis=alt.Axis(
+            x=alt.X('value:Q', title=y_axis_title, axis=alt.Axis(
                 titleColor='#a7b3c7',
                 labelColor='#a7b3c7',
                 gridColor='rgba(167, 179, 199, 0.2)'
@@ -210,7 +225,7 @@ def render_bar_chart(df, title, y_label="Value", horizontal=False):
             ))
         ).properties(
             title=alt.TitleParams(
-                text=title,
+                text=title_text,
                 color='#e6effa',
                 fontSize=16,
                 fontWeight='bold'
@@ -236,14 +251,14 @@ def render_bar_chart(df, title, y_label="Value", horizontal=False):
                 titleColor='#a7b3c7',
                 labelColor='#a7b3c7'
             )),
-            y=alt.Y('value:Q', title=y_label, axis=alt.Axis(
+            y=alt.Y('value:Q', title=y_axis_title, axis=alt.Axis(
                 titleColor='#a7b3c7',
                 labelColor='#a7b3c7',
                 gridColor='rgba(167, 179, 199, 0.2)'
             ))
         ).properties(
             title=alt.TitleParams(
-                text=title,
+                text=title_text,
                 color='#e6effa',
                 fontSize=16,
                 fontWeight='bold'
@@ -268,8 +283,22 @@ def render_area_chart(df, title, y_label="Value"):
     """
     Render a theme-appropriate area chart using Altair
     """
+    if isinstance(title, str):
+        title_text = title.strip() or "Area Chart"
+    elif title is None:
+        title_text = "Area Chart"
+    else:
+        title_text = str(title)
+
+    if isinstance(y_label, str):
+        y_axis_title = y_label.strip() or "Value"
+    elif y_label is None:
+        y_axis_title = "Value"
+    else:
+        y_axis_title = str(y_label)
+
     if df is None or df.empty:
-        st.warning(f"No data available for {title}")
+        st.warning(f"No data available for {title_text}")
         return
     
     # Get current theme to determine colors
@@ -294,14 +323,14 @@ def render_area_chart(df, title, y_label="Value"):
             labelColor='#a7b3c7',
             gridColor='rgba(167, 179, 199, 0.2)'
         )),
-        y=alt.Y('value:Q', title=y_label, axis=alt.Axis(
+        y=alt.Y('value:Q', title=y_axis_title, axis=alt.Axis(
             titleColor='#a7b3c7',
             labelColor='#a7b3c7',
             gridColor='rgba(167, 179, 199, 0.2)'
         ))
     ).properties(
         title=alt.TitleParams(
-            text=title,
+            text=title_text,
             color='#e6effa',
             fontSize=16,
             fontWeight='bold'

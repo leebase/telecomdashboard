@@ -5,6 +5,9 @@ This is the main Streamlit application that demonstrates the multi-agent system
 with real-time progress visualization, portfolio optimization, and stunning UI.
 """
 
+from pathlib import Path
+import sys
+
 import streamlit as st
 import time
 import json
@@ -13,6 +16,21 @@ import plotly.express as px
 from datetime import datetime
 from typing import Dict, List, Any
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parent
+SRC = ROOT / "src"
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
+from ui.runtime_switch import is_metadata_enabled
+
+if is_metadata_enabled():
+    from ui.metadata_runtime_app import render_metadata_dashboard
+
+    render_metadata_dashboard()
+    st.stop()
 
 from agents.orchestrator import AgentOrchestrator, OrchestrationConfig
 from agents.mock_intelligence import get_mock_intelligence_engine

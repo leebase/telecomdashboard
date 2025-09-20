@@ -24,7 +24,7 @@
 - Validate metadata pack: `python -m metadata_cli validate metadata/dashboard_telco.yaml`.
 - Run Streamlit legacy mode: `streamlit run app.py` (flag off).
 - Run metadata mode: `USE_METADATA=true streamlit run app.py`.
-- Clear caches: `python -m metadata_cli cache clear --scope local`.
+- Clear caches: rerun `python -m metadata_cli validate ...` (dedicated cache commands will ship with Sprint C3).
 - Capture visual snapshots: `pytest tests/visual/test_visual_parity.py -m visual --update-baseline`.
 
 ## Deployment Pipeline
@@ -41,8 +41,7 @@
 ## SQLite Cache
 - Location: `./data/telecom_db.sqlite` (local) or `/var/cache/telecom.sqlite` (server).
 - Permissions: `chmod 600` owner-only.
-- Cache refresh triggered via `metadata_cli cache prime --config metadata/dashboard_telco.yaml` for nightly priming.
-- Monitor file size; prune via `metadata_cli cache vacuum` when >1GB.
+- Nightly cache priming/vacuum tooling planned alongside the caching module (Sprint C3); manual maintenance only if required today.
 
 ## Secrets Handling
 - `.env` files only for local development; never commit.
@@ -53,7 +52,7 @@
 1. Detect anomaly (latency spike, failed validation).
 2. Toggle `USE_METADATA=false` via config service; redeploy to revert to legacy path.
 3. Inspect logs filtered by `metadata_runtime` component; check compiled SQL output for failures.
-4. Run `metadata_cli validate` on offending pack; compare git history for recent changes.
+4. Run `python -m metadata_cli validate` on the offending pack; compare git history for recent changes.
 5. If Snowflake outage, route queries to SQLite cache by updating `data_sources.default` to `sqlite` and reloading pack (temporary workaround).
 
 ## Open Items

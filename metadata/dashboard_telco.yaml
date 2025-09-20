@@ -30,7 +30,7 @@ data_sources:
     schema: ANALYTICS
   sqlite_cache:
     dialect: sqlite
-    path: ./data/telecom_db.sqlite
+    path: ../data/telecom_db.sqlite
     read_only: true
 
 filters:
@@ -46,7 +46,7 @@ filters:
     - id: region
       type: select
       label: Region
-      data_source: snowflake_main
+      data_source: sqlite_cache
       sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
       allow_blank: true
   subject_area:
@@ -54,7 +54,7 @@ filters:
       - id: network_element
         type: multiselect
         label: Network Element
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: "SELECT DISTINCT element_name FROM dim_network_element ORDER BY element_name"
         allow_blank: true
     customer_experience: []
@@ -64,7 +64,7 @@ filters:
       - id: ops_region
         type: select
         label: Operations Region
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
         allow_blank: true
     benchmark_management: []
@@ -200,20 +200,18 @@ kpis:
     tags: [sla, uptime]
     metrics:
       - id: metric_network_availability
-        data_source: snowflake_main
+        data_source: sqlite_cache
         fallback_source: sqlite_cache
         sql: |
           SELECT
-            date_id AS date,
-            region_name AS region,
-            AVG(availability_percent) AS availability_pct,
-            MAX(availability_percent) AS max_availability
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
-            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
-            {% if filters.network_element %}
-              AND network_element_name IN ({{ filters.network_element | csv }})
-            {% endif %}
+            f.date_id AS date,
+            r.region_name AS region,
+            AVG(100.0 * f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds, 0)) AS availability_pct,
+            MAX(100.0 * f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds, 0)) AS max_availability
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
           GROUP BY 1, 2
         dimensions: [date, region]
         cache_ttl_seconds: 300
@@ -246,15 +244,16 @@ kpis:
     tags: [latency]
     metrics:
       - id: metric_network_latency
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
-            date_id AS date,
-            region_name AS region,
-            AVG(avg_latency_ms) AS latency_ms
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
-            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
+            f.date_id AS date,
+            r.region_name AS region,
+            AVG(f.latency_ms) AS latency_ms
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
           GROUP BY 1, 2
         dimensions: [date, region]
         cache_ttl_seconds: 300
@@ -286,15 +285,16 @@ kpis:
     tags: [quality]
     metrics:
       - id: metric_packet_loss
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
-            date_id AS date,
-            region_name AS region,
-            AVG(avg_packet_loss_percent) AS packet_loss_pct
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
-            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
+            f.date_id AS date,
+            r.region_name AS region,
+            AVG(f.packet_loss_percent) AS packet_loss_pct
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
           GROUP BY 1, 2
         dimensions: [date, region]
         thresholds:
@@ -325,13 +325,14 @@ kpis:
     tags: [capacity]
     metrics:
       - id: metric_bandwidth_util
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
-            region_name AS region,
-            AVG(avg_bandwidth_utilization_percent) AS bandwidth_util_pct
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            r.region_name AS region,
+            AVG(f.bandwidth_utilization_percent) AS bandwidth_util_pct
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
         dimensions: [region]
         thresholds:
@@ -361,14 +362,15 @@ kpis:
     tags: [voice]
     metrics:
       - id: metric_dropped_calls
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
-            date_id AS date,
-            region_name AS region,
-            AVG(avg_dropped_call_rate) AS dropped_call_pct
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            f.date_id AS date,
+            r.region_name AS region,
+            AVG(f.dropped_call_rate) AS dropped_call_pct
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1, 2
         dimensions: [date, region]
         thresholds:
@@ -391,14 +393,15 @@ kpis:
     tags: [operations]
     metrics:
       - id: metric_mttr
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
-            date_id AS date,
-            region_name AS region,
-            AVG(avg_mttr_hours) AS mttr_hours
-          FROM vw_network_metrics_daily
-          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            f.date_id AS date,
+            r.region_name AS region,
+            AVG(f.mttr_hours) AS mttr_hours
+          FROM fact_network_metrics AS f
+          JOIN dim_region AS r ON r.region_id = f.region_id
+          WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1, 2
         dimensions: [date, region]
         thresholds:
@@ -423,7 +426,7 @@ kpis:
     tags: [customer]
     metrics:
       - id: metric_customer_satisfaction
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -451,7 +454,7 @@ kpis:
     tags: [customer, loyalty]
     metrics:
       - id: metric_nps
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -485,7 +488,7 @@ kpis:
     tags: [retention]
     metrics:
       - id: metric_churn
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -514,7 +517,7 @@ kpis:
     tags: [support]
     metrics:
       - id: metric_avg_handling_time
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -543,7 +546,7 @@ kpis:
     tags: [support]
     metrics:
       - id: metric_fcr
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -571,7 +574,7 @@ kpis:
     tags: [revenue]
     metrics:
       - id: metric_customer_ltv
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -598,7 +601,7 @@ kpis:
     tags: [revenue]
     metrics:
       - id: metric_arpu
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -627,7 +630,7 @@ kpis:
     tags: [profit]
     metrics:
       - id: metric_ebitda_margin
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -655,7 +658,7 @@ kpis:
     tags: [cost]
     metrics:
       - id: metric_cac
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -684,7 +687,7 @@ kpis:
     tags: [growth]
     metrics:
       - id: metric_revenue_growth
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -707,7 +710,7 @@ kpis:
     owner: samuel.banks@company.com
     metrics:
       - id: metric_profit_margin
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -729,7 +732,7 @@ kpis:
     owner: samuel.banks@company.com
     metrics:
       - id: metric_revenue_ltv
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -753,7 +756,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_data_usage
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -777,7 +780,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_5g_adoption
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -799,7 +802,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_feature_adoption
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -821,7 +824,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_service_penetration
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -843,7 +846,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_app_usage
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -865,7 +868,7 @@ kpis:
     owner: andrew.li@company.com
     metrics:
       - id: metric_premium_adoption
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -889,7 +892,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_service_response_time
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             o.date_id AS date,
@@ -914,7 +917,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_reg_compliance
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -936,7 +939,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_capex_ratio
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -958,7 +961,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_network_efficiency
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -979,7 +982,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_ticket_resolution
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -1001,7 +1004,7 @@ kpis:
     owner: nina.cho@company.com
     metrics:
       - id: metric_system_uptime
-        data_source: snowflake_main
+        data_source: sqlite_cache
         sql: |
           SELECT
             date_id AS date,
@@ -1070,7 +1073,7 @@ auxiliary_metrics:
       FROM benchmark_history
       ORDER BY changed_at DESC
   - id: metric_support_ticket_volume
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         o.date_id AS date,
@@ -1082,7 +1085,7 @@ auxiliary_metrics:
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_customer_sentiment
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         CASE
@@ -1095,7 +1098,7 @@ auxiliary_metrics:
       WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_product_revenue_mix
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         p.product_category AS product_family,
@@ -1105,7 +1108,7 @@ auxiliary_metrics:
       WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_revenue_trend
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         date_id AS date,
@@ -1114,7 +1117,7 @@ auxiliary_metrics:
       WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_revenue_forecast
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         date_id AS date,
@@ -1125,7 +1128,7 @@ auxiliary_metrics:
       WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_financial_summary
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       WITH aggregated AS (
         SELECT
@@ -1144,7 +1147,7 @@ auxiliary_metrics:
       UNION ALL
       SELECT 'Profit Margin', avg_profit_margin, '%' FROM aggregated
   - id: metric_plan_usage_mix
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         p.product_type AS plan_type,
@@ -1155,7 +1158,7 @@ auxiliary_metrics:
       WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_feature_adoption_trend
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         u.date_id AS date,
@@ -1166,7 +1169,7 @@ auxiliary_metrics:
       WHERE u.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_usage_distribution
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         CASE
@@ -1181,7 +1184,7 @@ auxiliary_metrics:
       GROUP BY 1
       ORDER BY usage_bucket
   - id: metric_response_time_region
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         r.region_name AS region,
@@ -1191,7 +1194,7 @@ auxiliary_metrics:
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_incident_heatmap
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         r.region_name AS region,
@@ -1206,7 +1209,7 @@ auxiliary_metrics:
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_system_uptime_trend
-    data_source: snowflake_main
+    data_source: sqlite_cache
     sql: |
       SELECT
         date_id AS date,
