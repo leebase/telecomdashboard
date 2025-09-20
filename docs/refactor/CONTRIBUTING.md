@@ -23,6 +23,7 @@
 - Use comments sparingly for assumptions; replace with real values once data is confirmed.
 - Keep packs under 500 lines by extracting shared structures (macros, auxiliary metrics).
 - Update `docs/CONFIGURE.md` when introducing new metadata features or CLI commands.
+- See `examples/` for sample packs (retail, healthcare) demonstrating cross-industry portability.
 
 ## PR Checklist
 - [ ] Metadata validated (`metadata_cli validate`).

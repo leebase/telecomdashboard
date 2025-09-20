@@ -165,7 +165,29 @@ Deliver the metadata runtime behind a feature flag (`USE_METADATA`) to guarantee
 - [x] Metadata runtime switch now gates the Streamlit app behind the `USE_METADATA` flag with parity fallbacks (Story D2-004).
 - [x] Canonical telco metadata pack and docs aligned to the generated SQLite views, eliminating missing-column/table errors in Streamlit.
 
-## Sprint 4 Plan (In Progress - Vertical Slice)
+## Sprint 4 Outcomes (Completed)
+- [x] Implemented TTL-aware cache module with SQLite persistence and CLI hooks (Story C3-001).
+- [x] Created auto-generate script for telco metadata pack with validation (Story D1-002).
+- [x] Built visual parity verification harness with screenshot/DOM comparison structure (Story D3-003).
+- [x] Developed example packs for retail and healthcare industries with updated contributing docs (Story E2-004).
+- [x] Added cache management methods to MetadataDataProvider and CLI commands for inspection/clearing.
+- [x] Ensured multi-database support baked in with SQLite prioritization for development.
+
+## Sprint 5 Plan (Vertical Slice)
+- **Objective:** Complete production readiness with Snowflake integration, full visual parity, and enterprise features.
+- **Scope (Stories):**
+  - **Snowflake Integration:** Full Snowflake datasource implementation with connection pooling and query tagging.
+  - **Complete Visual Parity:** Implement headless screenshot comparison and DOM diffing for all subject areas.
+  - **Enterprise Features:** Add authentication, audit logging, and production monitoring.
+  - **Performance Optimization:** Query optimization, async processing, and load testing.
+  - **Documentation Finalization:** Complete all docs, runbooks, and deployment guides.
+- **Working Software Slice:** Production-ready metadata runtime with Snowflake support, full visual parity, and enterprise features.
+- **Sprint 5 Evaluation Checklist:**
+  1. `pytest tests/data/test_datasource.py -m snowflake` passes with real Snowflake connection.
+  2. `pytest tests/visual/test_visual_parity.py -m visual` achieves <2% difference across all tabs.
+  3. `USE_METADATA=true streamlit run app.py` runs in production mode with all features.
+  4. Documentation builds successfully and covers all deployment scenarios.
+  5. Load testing shows acceptable performance under concurrent users.
 - **Objective:** Ship a production-ready metadata runtime slice that caches KPI results, auto-generates the telco pack, and proves UI parity end-to-end.
 - **Scope (Stories):**
   - **C3 – Caching Policy & Invalidation:** Implement TTL-aware cache module wired into `MetadataDataProvider` and expose CLI hooks for cache inspection/clear.

@@ -1,0 +1,135 @@
+schema_version: 1.0
+app_version: "0.9.0"
+pack_id: retail_default
+label: "Retail Performance Dashboard"
+globals:
+  timezone: America/New_York
+  default_date_range: last_30_days
+  currency: USD
+  theme: cognizant_dark
+  ai_insights_enabled: true
+  print_mode_enabled: false
+dialects:
+  default: snowflake
+  supported:
+    - snowflake
+    - sqlite
+  macros:
+    snowflake: macros/snowflake.sql
+    sqlite: macros/sqlite.sql
+
+data_sources:
+  snowflake_main:
+    dialect: snowflake
+    dsn_env: SNOWFLAKE_DSN
+    role: ANALYST
+    warehouse: RETAIL_WH
+    database: RETAIL
+    schema: ANALYTICS
+  sqlite_cache:
+    dialect: sqlite
+    path: ../data/retail_db.sqlite
+    read_only: true
+
+filters:
+  global:
+    - id: date_range
+      type: date_range
+      label: Date Range
+      default: last_30_days
+      bindings:
+        start_param: start_date
+        end_param: end_date
+    - id: store_region
+      type: select
+      label: Store Region
+      data_source: sqlite_cache
+      sql: "SELECT DISTINCT region_name FROM dim_store_region ORDER BY region_name"
+      allow_blank: true
+  subject_area:
+    sales_performance: []
+    inventory_management: []
+    customer_analytics: []
+    supply_chain: []
+
+subject_areas:
+  - id: sales_performance
+    title: "💰 Sales Performance"
+    icon: dollar
+    order: 1
+    description: "Revenue, margins, and sales trends."
+    default_filters: [date_range, store_region]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: sales_cards
+          title: "Key Metrics"
+          rows:
+            - [ {kpi_card: kpi_total_revenue}, {kpi_card: kpi_avg_transaction}, {kpi_card: kpi_conversion_rate} ]
+        - id: sales_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_revenue_trend}, {chart: chart_transaction_volume} ]
+
+kpis:
+  - id: kpi_total_revenue
+    title: "Total Revenue"
+    subject_area: sales_performance
+    description: "Total sales revenue across all stores."
+    owner: sales.ops@retail.com
+    tags: [revenue, kpi]
+    metrics:
+      - id: metric_total_revenue
+        data_source: sqlite_cache
+        sql: |
+          SELECT
+            date_id AS date,
+            SUM(total_sales) AS revenue
+          FROM fact_sales
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        cache_ttl_seconds: 300
+        thresholds:
+          good: ">= 1000000"
+          warn: ">= 750000"
+          bad: "< 750000"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_total_revenue
+        value_expr: last_value(revenue)
+        delta_expr: percent_delta(revenue)
+        unit: "$"
+        decimals: 0
+
+widgets:
+  chart_revenue_trend:
+    type: timeseries_line
+    dataset: metric_total_revenue
+    encoding:
+      x: date
+      y: revenue
+  chart_transaction_volume:
+    type: bar_chart
+    dataset: metric_transaction_volume
+    encoding:
+      x: date
+      y: transaction_count
+
+security:
+  roles:
+    manager:
+      can_view_subject_areas: [sales_performance, inventory_management]
+    analyst:
+      inherits: [manager]
+      can_view_subject_areas: [customer_analytics, supply_chain]
+
+refresh:
+  default_ttl_seconds: 300
+  overrides:
+    kpi_total_revenue: 600
+
+metadata_sources:
+  generated_on: "2025-09-20"
+  generated_by: "examples/retail_pack.yaml"

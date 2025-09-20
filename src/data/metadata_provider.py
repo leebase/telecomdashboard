@@ -11,6 +11,7 @@ from typing import Any, Dict, Mapping, Optional, Tuple
 import numpy as np
 import pandas as pd
 
+from data.cache import TTLCache, get_cache
 from data.datasource import DataSourceError, DataSourceFactory
 from data.query_compiler import CompiledQuery, QueryCompiler, QueryCompilerError
 from metadata_runtime.dialects import MacroRegistry
@@ -62,6 +63,16 @@ class MetadataDataProvider:
         self._compiler = QueryCompiler(config, self._macro_registry)
         self._factory = DataSourceFactory(config, self._metadata_path)
 
+        # Initialize TTL cache
+        default_ttl = config.refresh.default_ttl_seconds if config.refresh else 300
+        sqlite_path = None
+        # Check if SQLite datasource exists for cache
+        for ds_config in config.data_sources.values():
+            if ds_config.dialect == "sqlite" and ds_config.path:
+                sqlite_path = Path(ds_config.path).parent / "cache.db"
+                break
+        self._cache = get_cache(default_ttl=default_ttl, sqlite_path=sqlite_path)
+
         self._metric_index: Dict[str, KpiMetricConfig] = {}
         for kpi in config.kpis:
             for metric in kpi.metrics:
@@ -77,7 +88,6 @@ class MetadataDataProvider:
         for subject_id, filters in config.filters.subject_area.items():
             self._subject_filters[subject_id] = {flt.id: flt for flt in filters}
 
-        self._frame_cache: Dict[Tuple[str, Tuple[Tuple[str, Any], ...]], pd.DataFrame] = {}
         self._rng_cache: Dict[str, np.random.Generator] = {}
 
     def _load_macros(self) -> None:
@@ -125,9 +135,12 @@ class MetadataDataProvider:
 
     def get_metric_frame(self, metric_id: str, filters: Optional[Mapping[str, Any]] = None) -> pd.DataFrame:
         filters = filters or {}
-        cache_key = (metric_id, _freeze_filters(filters))
-        if cache_key in self._frame_cache:
-            return self._frame_cache[cache_key]
+        cache_key = f"{metric_id}:{_freeze_filters(filters)}"
+
+        # Try cache first
+        cached_frame = self._cache.get(cache_key)
+        if cached_frame is not None:
+            return cached_frame
 
         metric = self._metric_index.get(metric_id)
         if not metric:
@@ -143,7 +156,16 @@ class MetadataDataProvider:
         if frame.empty:
             frame = self._build_stub_frame(metric)
 
-        self._frame_cache[cache_key] = frame
+        # Cache with metric-specific TTL
+        ttl = metric.cache_ttl_seconds
+        if ttl is None and self._config.refresh:
+            # Check for overrides
+            if self._config.refresh.overrides and metric_id in self._config.refresh.overrides.__root__:
+                ttl = self._config.refresh.overrides.__root__[metric_id]
+            else:
+                ttl = self._config.refresh.default_ttl_seconds
+
+        self._cache.put(cache_key, frame, ttl)
         return frame
 
     def _execute_query(self, compiled: CompiledQuery) -> pd.DataFrame:
@@ -301,6 +323,20 @@ class MetadataDataProvider:
     @staticmethod
     def _extract_aliases(sql: str) -> list[str]:
         return re.findall(r"AS\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql, flags=re.IGNORECASE)
+
+    def clear_cache(self) -> int:
+        """Clear all cached metric frames."""
+        return self._cache.clear()
+
+    def invalidate_metric_cache(self, metric_id: str, filters: Optional[Mapping[str, Any]] = None) -> bool:
+        """Invalidate cache for specific metric and filters."""
+        filters = filters or {}
+        cache_key = f"{metric_id}:{_freeze_filters(filters)}"
+        return self._cache.invalidate(cache_key)
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Get cache statistics."""
+        return self._cache.stats()
 
 
 __all__ = ["MetadataDataProvider"]

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .loader import MetadataLoadError, load_metadata
+from data.metadata_provider import MetadataDataProvider
 
 
 def _format_errors(errors: Iterable[dict]) -> str:
@@ -34,6 +35,15 @@ def _build_parser() -> argparse.ArgumentParser:
         "--quiet", action="store_true", help="Suppress success output"
     )
 
+    cache = subparsers.add_parser("cache", help="Cache management commands")
+    cache_sub = cache.add_subparsers(dest="cache_command", required=True)
+
+    clear = cache_sub.add_parser("clear", help="Clear all cached data")
+    clear.add_argument("path", type=Path, help="Path to metadata YAML file")
+
+    stats = cache_sub.add_parser("stats", help="Show cache statistics")
+    stats.add_argument("path", type=Path, help="Path to metadata YAML file")
+
     return parser
 
 
@@ -58,12 +68,43 @@ def _handle_validate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _handle_cache_clear(args: argparse.Namespace) -> int:
+    try:
+        config = load_metadata(args.path, force_reload=True)
+        provider = MetadataDataProvider(config, args.path.parent)
+        cleared = provider.clear_cache()
+        print(f"✅ Cleared {cleared} cache entries")
+        return 0
+    except Exception as exc:
+        print(f"Cache clear failed: {exc}", file=sys.stderr)
+        return 1
+
+
+def _handle_cache_stats(args: argparse.Namespace) -> int:
+    try:
+        config = load_metadata(args.path, force_reload=True)
+        provider = MetadataDataProvider(config, args.path.parent)
+        stats = provider.get_cache_stats()
+        print("Cache Statistics:")
+        for key, value in stats.items():
+            print(f"  {key}: {value}")
+        return 0
+    except Exception as exc:
+        print(f"Cache stats failed: {exc}", file=sys.stderr)
+        return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "validate":
         return _handle_validate(args)
+    elif args.command == "cache":
+        if args.cache_command == "clear":
+            return _handle_cache_clear(args)
+        elif args.cache_command == "stats":
+            return _handle_cache_stats(args)
 
     parser.print_help()
     return 1

@@ -1,0 +1,135 @@
+schema_version: 1.0
+app_version: "0.9.0"
+pack_id: healthcare_default
+label: "Healthcare Operations Dashboard"
+globals:
+  timezone: America/New_York
+  default_date_range: last_30_days
+  currency: USD
+  theme: cognizant_dark
+  ai_insights_enabled: true
+  print_mode_enabled: false
+dialects:
+  default: snowflake
+  supported:
+    - snowflake
+    - sqlite
+  macros:
+    snowflake: macros/snowflake.sql
+    sqlite: macros/sqlite.sql
+
+data_sources:
+  snowflake_main:
+    dialect: snowflake
+    dsn_env: SNOWFLAKE_DSN
+    role: ANALYST
+    warehouse: HEALTHCARE_WH
+    database: HEALTHCARE
+    schema: ANALYTICS
+  sqlite_cache:
+    dialect: sqlite
+    path: ../data/healthcare_db.sqlite
+    read_only: true
+
+filters:
+  global:
+    - id: date_range
+      type: date_range
+      label: Date Range
+      default: last_30_days
+      bindings:
+        start_param: start_date
+        end_param: end_date
+    - id: facility_type
+      type: select
+      label: Facility Type
+      data_source: sqlite_cache
+      sql: "SELECT DISTINCT facility_type FROM dim_facility ORDER BY facility_type"
+      allow_blank: true
+  subject_area:
+    patient_care: []
+    operational_efficiency: []
+    financial_performance: []
+
+subject_areas:
+  - id: patient_care
+    title: "🏥 Patient Care"
+    icon: hospital
+    order: 1
+    description: "Patient outcomes, satisfaction, and care quality."
+    default_filters: [date_range, facility_type]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: care_cards
+          title: "Key Metrics"
+          rows:
+            - [ {kpi_card: kpi_patient_satisfaction}, {kpi_card: kpi_avg_length_stay}, {kpi_card: kpi_readmission_rate} ]
+        - id: care_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_satisfaction_trend}, {chart: chart_admission_volume} ]
+
+kpis:
+  - id: kpi_patient_satisfaction
+    title: "Patient Satisfaction"
+    subject_area: patient_care
+    description: "Average patient satisfaction score."
+    owner: quality.ops@healthcare.com
+    tags: [quality, patient]
+    metrics:
+      - id: metric_patient_satisfaction
+        data_source: sqlite_cache
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(satisfaction_score) AS satisfaction
+          FROM fact_patient_care
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        cache_ttl_seconds: 300
+        thresholds:
+          good: ">= 4.5"
+          warn: ">= 4.0"
+          bad: "< 4.0"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_patient_satisfaction
+        value_expr: last_value(satisfaction)
+        delta_expr: delta(satisfaction)
+        decimals: 2
+
+widgets:
+  chart_satisfaction_trend:
+    type: timeseries_line
+    dataset: metric_patient_satisfaction
+    encoding:
+      x: date
+      y: satisfaction
+  chart_admission_volume:
+    type: bar_chart
+    dataset: metric_admission_volume
+    encoding:
+      x: date
+      y: admission_count
+
+security:
+  roles:
+    administrator:
+      can_view_subject_areas: [patient_care, operational_efficiency, financial_performance]
+    clinician:
+      can_view_subject_areas: [patient_care]
+    analyst:
+      inherits: [clinician]
+      can_view_subject_areas: [operational_efficiency, financial_performance]
+
+refresh:
+  default_ttl_seconds: 300
+  overrides:
+    kpi_patient_satisfaction: 600
+
+metadata_sources:
+  generated_on: "2025-09-20"
+  generated_by: "examples/healthcare_pack.yaml"
