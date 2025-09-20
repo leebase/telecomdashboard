@@ -1,0 +1,1304 @@
+schema_version: 1.0
+app_version: "0.9.0"
+pack_id: telecom_default
+label: "Telecom KPI Dashboard"
+globals:
+  timezone: America/Chicago
+  default_date_range: last_30_days
+  currency: USD
+  theme: cognizant_dark
+  ai_insights_enabled: true
+  print_mode_enabled: false
+dialects:
+  default: snowflake
+  supported:
+    - snowflake
+    - sqlite
+  macros:
+    snowflake: macros/snowflake.sql
+    sqlite: macros/sqlite.sql
+
+# Data sources map to env vars for Snowflake and local SQLite cache
+# Assumption: SNOWFLAKE_DSN environment key already provisioned.
+data_sources:
+  snowflake_main:
+    dialect: snowflake
+    dsn_env: SNOWFLAKE_DSN
+    role: ANALYST
+    warehouse: KPI_WH
+    database: TELECOM
+    schema: ANALYTICS
+  sqlite_cache:
+    dialect: sqlite
+    path: ./data/telecom_db.sqlite
+    read_only: true
+
+filters:
+  global:
+    - id: date_range
+      type: date_range
+      label: Date Range
+      default: last_30_days
+      options: [last_7_days, last_30_days, qtd, ytd, last_12_months]
+      bindings:
+        start_param: start_date
+        end_param: end_date
+    - id: region
+      type: select
+      label: Region
+      data_source: snowflake_main
+      sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
+      allow_blank: true
+  subject_area:
+    network_performance:
+      - id: network_element
+        type: multiselect
+        label: Network Element
+        data_source: snowflake_main
+        sql: "SELECT DISTINCT element_name FROM dim_network_element ORDER BY element_name"
+        allow_blank: true
+    customer_experience: []
+    revenue_monetization: []
+    usage_adoption: []
+    operational_efficiency:
+      - id: ops_region
+        type: select
+        label: Operations Region
+        data_source: snowflake_main
+        sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
+        allow_blank: true
+    benchmark_management: []
+
+subject_areas:
+  - id: network_performance
+    title: "📡 Network Performance"
+    icon: antenna
+    order: 1
+    description: "Uptime, latency, and reliability metrics."
+    default_filters: [date_range, region]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: np_cards
+          title: "Key KPIs"
+          rows:
+            - [ {kpi_card: kpi_network_availability}, {kpi_card: kpi_network_latency}, {kpi_card: kpi_packet_loss} ]
+            - [ {kpi_card: kpi_bandwidth_utilization}, {kpi_card: kpi_dropped_call_rate}, {kpi_card: kpi_mttr} ]
+        - id: np_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_latency_trend}, {chart: chart_uptime_trend} ]
+            - [ {chart: chart_bandwidth_region}, {chart: chart_packet_loss_trend} ]
+        - id: np_kpi_details
+          title: "KPI Details"
+          rows:
+            - [ {widget: widget_network_kpi_expanders} ]
+  - id: customer_experience
+    title: "😊 Customer Experience"
+    icon: smile
+    order: 2
+    description: "Satisfaction, churn, and support operations."
+    default_filters: [date_range]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: cx_cards
+          title: "Key KPIs"
+          rows:
+            - [ {kpi_card: kpi_customer_satisfaction}, {kpi_card: kpi_nps}, {kpi_card: kpi_churn_rate} ]
+            - [ {kpi_card: kpi_avg_handling_time}, {kpi_card: kpi_first_contact_resolution}, {kpi_card: kpi_customer_ltv} ]
+        - id: cx_trends
+          title: "Trends & Sentiment"
+          rows:
+            - [ {chart: chart_nps_trend}, {chart: chart_support_tickets} ]
+            - [ {chart: chart_customer_sentiment_distribution} ]
+  - id: revenue_monetization
+    title: "💰 Revenue & Monetization"
+    icon: dollar
+    order: 3
+    description: "Financial performance and growth metrics."
+    default_filters: [date_range]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: rev_cards
+          title: "Key KPIs"
+          rows:
+            - [ {kpi_card: kpi_arpu}, {kpi_card: kpi_ebitda_margin}, {kpi_card: kpi_cac} ]
+            - [ {kpi_card: kpi_revenue_growth}, {kpi_card: kpi_profit_margin}, {kpi_card: kpi_revenue_customer_ltv} ]
+        - id: rev_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_revenue_trend}, {chart: chart_product_mix} ]
+            - [ {chart: chart_revenue_forecast} ]
+        - id: rev_tables
+          title: "Detail"
+          rows:
+            - [ {chart: chart_financial_table} ]
+  - id: usage_adoption
+    title: "📶 Usage & Adoption"
+    icon: signal
+    order: 4
+    description: "Service utilization and feature adoption."
+    default_filters: [date_range]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: ua_cards
+          title: "Key KPIs"
+          rows:
+            - [ {kpi_card: kpi_data_usage}, {kpi_card: kpi_5g_adoption}, {kpi_card: kpi_feature_adoption} ]
+            - [ {kpi_card: kpi_service_penetration}, {kpi_card: kpi_app_usage}, {kpi_card: kpi_premium_adoption} ]
+        - id: ua_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_plan_usage_mix}, {chart: chart_feature_adoption_trend} ]
+            - [ {chart: chart_usage_distribution} ]
+  - id: operational_efficiency
+    title: "🛠️ Operational Efficiency"
+    icon: wrench
+    order: 5
+    description: "Operational performance, compliance, and reliability."
+    default_filters: [date_range, ops_region]
+    layout:
+      grid_columns: 12
+      sections:
+        - id: ops_cards
+          title: "Key KPIs"
+          rows:
+            - [ {kpi_card: kpi_service_response_time}, {kpi_card: kpi_reg_compliance}, {kpi_card: kpi_capex_ratio} ]
+            - [ {kpi_card: kpi_network_efficiency}, {kpi_card: kpi_ticket_resolution}, {kpi_card: kpi_system_uptime} ]
+        - id: ops_trends
+          title: "Trends"
+          rows:
+            - [ {chart: chart_response_time_region}, {chart: chart_incident_heatmap} ]
+            - [ {chart: chart_uptime_trend_ops} ]
+  - id: benchmark_management
+    title: "🎯 Benchmark Management"
+    icon: target
+    order: 6
+    description: "Maintain peer and industry benchmark targets."
+    default_filters: []
+    layout:
+      grid_columns: 12
+      sections:
+        - id: bm_editor
+          title: "Benchmarks"
+          rows:
+            - [ {widget: widget_benchmark_table} ]
+            - [ {widget: widget_benchmark_history} ]
+            - [ {widget: widget_benchmark_editor} ]
+
+# KPI definitions include assumptions where existing code uses simulated values.
+# Comments mark inferred thresholds from fallback defaults.
+kpis:
+  - id: kpi_network_availability
+    title: "Network Availability"
+    subject_area: network_performance
+    description: "Percentage of time the network is operational."
+    owner: lee.chen@company.com
+    tags: [sla, uptime]
+    metrics:
+      - id: metric_network_availability
+        data_source: snowflake_main
+        fallback_source: sqlite_cache
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(availability_percent) AS availability_pct,
+            MAX(availability_percent) AS max_availability
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
+            {% if filters.network_element %}
+              AND network_element_name IN ({{ filters.network_element | csv }})
+            {% endif %}
+          GROUP BY 1, 2
+        dimensions: [date, region]
+        cache_ttl_seconds: 300
+        thresholds:  # Assumption: Good >=99.7 based on legacy tooltip copy
+          good: ">= 99.7"
+          warn: ">= 99.0"
+          bad: "< 99.0"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_network_availability
+        value_expr: last_value(availability_pct)
+        delta_expr: percent_delta(availability_pct)
+        unit: "%"
+        decimals: 2
+      secondary:
+        - chart_id: chart_uptime_trend
+          type: timeseries_line
+          dataset: metric_network_availability
+          encoding:
+            x: date
+            y: availability_pct
+            color: region
+            tooltip: [date, region, availability_pct]
+  - id: kpi_network_latency
+    title: "Average Latency"
+    subject_area: network_performance
+    description: "Average network latency in milliseconds."
+    owner: lee.chen@company.com
+    tags: [latency]
+    metrics:
+      - id: metric_network_latency
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(avg_latency_ms) AS latency_ms
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
+          GROUP BY 1, 2
+        dimensions: [date, region]
+        cache_ttl_seconds: 300
+        thresholds:
+          good: "<= 40"
+          warn: "<= 60"
+          bad: "> 60"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_network_latency
+        value_expr: last_value(latency_ms)
+        delta_expr: delta(latency_ms)
+        unit: "ms"
+        decimals: 1
+      secondary:
+        - chart_id: chart_latency_trend
+          type: timeseries_line
+          dataset: metric_network_latency
+          encoding:
+            x: date
+            y: latency_ms
+            color: region
+  - id: kpi_packet_loss
+    title: "Packet Loss Rate"
+    subject_area: network_performance
+    description: "Average packet loss percentage."
+    owner: lee.chen@company.com
+    tags: [quality]
+    metrics:
+      - id: metric_packet_loss
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(avg_packet_loss_percent) AS packet_loss_pct
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.region %}AND region_name = {{ filters.region | quote }}{% endif %}
+          GROUP BY 1, 2
+        dimensions: [date, region]
+        thresholds:
+          good: "<= 0.3"
+          warn: "<= 0.7"
+          bad: "> 0.7"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_packet_loss
+        value_expr: last_value(packet_loss_pct)
+        delta_expr: delta(packet_loss_pct)
+        unit: "%"
+        decimals: 2
+      secondary:
+        - chart_id: chart_packet_loss_trend
+          type: area_chart
+          dataset: metric_packet_loss
+          encoding:
+            x: date
+            y: packet_loss_pct
+            color: region
+  - id: kpi_bandwidth_utilization
+    title: "Bandwidth Utilization"
+    subject_area: network_performance
+    description: "Average bandwidth utilization percentage."
+    owner: lee.chen@company.com
+    tags: [capacity]
+    metrics:
+      - id: metric_bandwidth_util
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            region_name AS region,
+            AVG(avg_bandwidth_utilization_percent) AS bandwidth_util_pct
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [region]
+        thresholds:
+          good: "<= 70"
+          warn: "<= 85"
+          bad: "> 85"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_bandwidth_util
+        value_expr: weighted_avg(bandwidth_util_pct)
+        delta_expr: delta(bandwidth_util_pct)
+        unit: "%"
+        decimals: 1
+      secondary:
+        - chart_id: chart_bandwidth_region
+          type: bar_chart
+          dataset: metric_bandwidth_util
+          encoding:
+            x: region
+            y: bandwidth_util_pct
+  - id: kpi_dropped_call_rate
+    title: "Dropped Call Rate"
+    subject_area: network_performance
+    description: "Share of calls dropped across the network."
+    owner: lee.chen@company.com
+    tags: [voice]
+    metrics:
+      - id: metric_dropped_calls
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(avg_dropped_call_rate) AS dropped_call_pct
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1, 2
+        dimensions: [date, region]
+        thresholds:
+          good: "<= 0.4"
+          warn: "<= 0.6"
+          bad: "> 0.6"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_dropped_calls
+        value_expr: last_value(dropped_call_pct)
+        delta_expr: delta(dropped_call_pct)
+        unit: "%"
+        decimals: 2
+  - id: kpi_mttr
+    title: "Mean Time To Repair"
+    subject_area: network_performance
+    description: "Average hours to resolve critical incidents."
+    owner: lee.chen@company.com
+    tags: [operations]
+    metrics:
+      - id: metric_mttr
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(avg_mttr_hours) AS mttr_hours
+          FROM vw_network_metrics_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1, 2
+        dimensions: [date, region]
+        thresholds:
+          good: "<= 2.5"
+          warn: "<= 4"
+          bad: "> 4"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_mttr
+        value_expr: last_value(mttr_hours)
+        delta_expr: delta(mttr_hours)
+        unit: "h"
+        decimals: 2
+
+  # Customer Experience KPIs
+  - id: kpi_customer_satisfaction
+    title: "Customer Satisfaction"
+    subject_area: customer_experience
+    description: "Average satisfaction score (1-5)."
+    owner: melissa.patel@company.com
+    tags: [customer]
+    metrics:
+      - id: metric_customer_satisfaction
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(customer_satisfaction_score) AS satisfaction_score
+          FROM vw_customer_experience_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: ">= 4.3"
+          warn: ">= 3.8"
+          bad: "< 3.8"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_customer_satisfaction
+        value_expr: last_value(satisfaction_score)
+        delta_expr: delta(satisfaction_score)
+        decimals: 2
+  - id: kpi_nps
+    title: "Net Promoter Score"
+    subject_area: customer_experience
+    description: "Difference between promoters and detractors."
+    owner: melissa.patel@company.com
+    tags: [customer, loyalty]
+    metrics:
+      - id: metric_nps
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(net_promoter_score) AS nps
+          FROM vw_customer_experience_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: ">= 40"
+          warn: ">= 20"
+          bad: "< 20"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_nps
+        value_expr: last_value(nps)
+        delta_expr: delta(nps)
+      secondary:
+        - chart_id: chart_nps_trend
+          type: timeseries_line
+          dataset: metric_nps
+          encoding:
+            x: date
+            y: nps
+  - id: kpi_churn_rate
+    title: "Customer Churn Rate"
+    subject_area: customer_experience
+    description: "Percentage of customers leaving per period."
+    owner: melissa.patel@company.com
+    tags: [retention]
+    metrics:
+      - id: metric_churn
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            SUM(churned_customers) / NULLIF(SUM(total_customers), 0) * 100 AS churn_pct
+          FROM fact_customer_experience
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: "<= 2.0"
+          warn: "<= 3.0"
+          bad: "> 3.0"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_churn
+        value_expr: last_value(churn_pct)
+        delta_expr: delta(churn_pct)
+        unit: "%"
+        decimals: 2
+  - id: kpi_avg_handling_time
+    title: "Average Handling Time"
+    subject_area: customer_experience
+    description: "Call center handle time in minutes."
+    owner: melissa.patel@company.com
+    tags: [support]
+    metrics:
+      - id: metric_avg_handling_time
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(average_handling_time_minutes) AS aht_minutes
+          FROM vw_customer_experience_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: "<= 4.5"
+          warn: "<= 6"
+          bad: "> 6"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_avg_handling_time
+        value_expr: last_value(aht_minutes)
+        delta_expr: delta(aht_minutes)
+        unit: "min"
+        decimals: 2
+  - id: kpi_first_contact_resolution
+    title: "First Contact Resolution"
+    subject_area: customer_experience
+    description: "Percentage of cases resolved on first contact."
+    owner: melissa.patel@company.com
+    tags: [support]
+    metrics:
+      - id: metric_fcr
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(first_contact_resolution_percent) AS fcr_pct
+          FROM vw_customer_experience_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: ">= 80"
+          warn: ">= 70"
+          bad: "< 70"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_fcr
+        value_expr: last_value(fcr_pct)
+        delta_expr: delta(fcr_pct)
+        unit: "%"
+  - id: kpi_customer_ltv
+    title: "Customer Lifetime Value"
+    subject_area: customer_experience
+    description: "Estimated lifetime revenue per customer."
+    owner: melissa.patel@company.com
+    tags: [revenue]
+    metrics:
+      - id: metric_customer_ltv
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(customer_lifetime_value) AS clv
+          FROM fact_customer_value
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_customer_ltv
+        value_expr: last_value(clv)
+        delta_expr: delta(clv)
+        unit: "$"
+        decimals: 2
+
+  # Revenue & Monetization
+  - id: kpi_arpu
+    title: "Average Revenue Per User"
+    subject_area: revenue_monetization
+    description: "Monthly recurring revenue per subscriber."
+    owner: samuel.banks@company.com
+    tags: [revenue]
+    metrics:
+      - id: metric_arpu
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            SUM(revenue_amount) / NULLIF(SUM(active_subscribers), 0) AS arpu
+          FROM fact_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: ">= 40"
+          warn: ">= 35"
+          bad: "< 35"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_arpu
+        value_expr: last_value(arpu)
+        delta_expr: delta(arpu)
+        unit: "$"
+        decimals: 2
+  - id: kpi_ebitda_margin
+    title: "EBITDA Margin"
+    subject_area: revenue_monetization
+    description: "Operating profitability percentage."
+    owner: samuel.banks@company.com
+    tags: [profit]
+    metrics:
+      - id: metric_ebitda_margin
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(ebitda_margin_percent) AS ebitda_margin_pct
+          FROM vw_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: ">= 30"
+          warn: ">= 25"
+          bad: "< 25"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_ebitda_margin
+        value_expr: last_value(ebitda_margin_pct)
+        delta_expr: delta(ebitda_margin_pct)
+        unit: "%"
+  - id: kpi_cac
+    title: "Customer Acquisition Cost"
+    subject_area: revenue_monetization
+    description: "Average cost per new customer."
+    owner: samuel.banks@company.com
+    tags: [cost]
+    metrics:
+      - id: metric_cac
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            SUM(marketing_spend) / NULLIF(SUM(new_customers), 0) AS cac
+          FROM fact_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+        dimensions: [date]
+        thresholds:
+          good: "<= 120"
+          warn: "<= 150"
+          bad: "> 150"
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_cac
+        value_expr: last_value(cac)
+        delta_expr: delta(cac)
+        unit: "$"
+        decimals: 0
+  - id: kpi_revenue_growth
+    title: "Revenue Growth"
+    subject_area: revenue_monetization
+    description: "Year-over-year revenue percentage change."
+    owner: samuel.banks@company.com
+    tags: [growth]
+    metrics:
+      - id: metric_revenue_growth
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            revenue_growth_percent AS revenue_growth_pct
+          FROM vw_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+        dimensions: [date]
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_revenue_growth
+        value_expr: last_value(revenue_growth_pct)
+        delta_expr: delta(revenue_growth_pct)
+        unit: "%"
+  - id: kpi_profit_margin
+    title: "Profit Margin"
+    subject_area: revenue_monetization
+    description: "Net profit divided by total revenue."
+    owner: samuel.banks@company.com
+    metrics:
+      - id: metric_profit_margin
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            profit_margin_percent AS profit_margin_pct
+          FROM vw_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_profit_margin
+        value_expr: last_value(profit_margin_pct)
+        delta_expr: delta(profit_margin_pct)
+        unit: "%"
+  - id: kpi_revenue_customer_ltv
+    title: "Customer Lifetime Value"
+    subject_area: revenue_monetization
+    description: "Revenue-focused CLV calculation."
+    owner: samuel.banks@company.com
+    metrics:
+      - id: metric_revenue_ltv
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(revenue_ltv) AS revenue_ltv
+          FROM vw_revenue_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_revenue_ltv
+        value_expr: last_value(revenue_ltv)
+        delta_expr: delta(revenue_ltv)
+        unit: "$"
+
+  # Usage & Adoption
+  - id: kpi_data_usage
+    title: "Data Usage per Subscriber"
+    subject_area: usage_adoption
+    description: "Average monthly gigabytes consumed."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_data_usage
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(data_usage_gb_per_user) AS data_usage_gb
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+        dimensions: [date]
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_data_usage
+        value_expr: last_value(data_usage_gb)
+        delta_expr: delta(data_usage_gb)
+        unit: "GB"
+        decimals: 2
+  - id: kpi_5g_adoption
+    title: "5G Adoption Rate"
+    subject_area: usage_adoption
+    description: "Percentage of subscribers on 5G plans."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_5g_adoption
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(five_g_adoption_percent) AS adoption_pct
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_5g_adoption
+        value_expr: last_value(adoption_pct)
+        delta_expr: delta(adoption_pct)
+        unit: "%"
+  - id: kpi_feature_adoption
+    title: "Feature Adoption Rate"
+    subject_area: usage_adoption
+    description: "Adoption rate for promoted features."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_feature_adoption
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(feature_adoption_percent) AS feature_adoption_pct
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_feature_adoption
+        value_expr: last_value(feature_adoption_pct)
+        delta_expr: delta(feature_adoption_pct)
+        unit: "%"
+  - id: kpi_service_penetration
+    title: "Service Penetration"
+    subject_area: usage_adoption
+    description: "Penetration of bundled services."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_service_penetration
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(service_penetration_percent) AS service_penetration_pct
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_service_penetration
+        value_expr: last_value(service_penetration_pct)
+        delta_expr: delta(service_penetration_pct)
+        unit: "%"
+  - id: kpi_app_usage
+    title: "App Usage Rate"
+    subject_area: usage_adoption
+    description: "Share of users engaging with mobile app weekly."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_app_usage
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(app_usage_percent) AS app_usage_pct
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_app_usage
+        value_expr: last_value(app_usage_pct)
+        delta_expr: delta(app_usage_pct)
+        unit: "%"
+  - id: kpi_premium_adoption
+    title: "Premium Service Adoption"
+    subject_area: usage_adoption
+    description: "Percentage of subscribers on premium bundles."
+    owner: andrew.li@company.com
+    metrics:
+      - id: metric_premium_adoption
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(premium_service_adoption_percent) AS premium_adoption_pct
+          FROM vw_usage_adoption_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_premium_adoption
+        value_expr: last_value(premium_adoption_pct)
+        delta_expr: delta(premium_adoption_pct)
+        unit: "%"
+
+  # Operational Efficiency
+  - id: kpi_service_response_time
+    title: "Service Response Time"
+    subject_area: operational_efficiency
+    description: "Average response time to service incidents (hours)."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_service_response_time
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            region_name AS region,
+            AVG(service_response_time_hours) AS response_time_hours
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+            {% if filters.ops_region %}AND region_name = {{ filters.ops_region | quote }}{% endif %}
+          GROUP BY 1, 2
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_service_response_time
+        value_expr: last_value(response_time_hours)
+        delta_expr: delta(response_time_hours)
+        unit: "h"
+  - id: kpi_reg_compliance
+    title: "Regulatory Compliance Rate"
+    subject_area: operational_efficiency
+    description: "Compliance score across audits."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_reg_compliance
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(regulatory_compliance_percent) AS compliance_pct
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+          GROUP BY 1
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_reg_compliance
+        value_expr: last_value(compliance_pct)
+        delta_expr: delta(compliance_pct)
+        unit: "%"
+  - id: kpi_capex_ratio
+    title: "Capex to Revenue Ratio"
+    subject_area: operational_efficiency
+    description: "Capital expenditure as percent of revenue."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_capex_ratio
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            capex_to_revenue_percent AS capex_ratio_pct
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_capex_ratio
+        value_expr: last_value(capex_ratio_pct)
+        delta_expr: delta(capex_ratio_pct)
+        unit: "%"
+  - id: kpi_network_efficiency
+    title: "Network Efficiency Score"
+    subject_area: operational_efficiency
+    description: "Composite efficiency score (0-100)."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_network_efficiency
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(network_efficiency_score) AS efficiency_score
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_network_efficiency
+        value_expr: last_value(efficiency_score)
+        delta_expr: delta(efficiency_score)
+  - id: kpi_ticket_resolution
+    title: "Support Ticket Resolution"
+    subject_area: operational_efficiency
+    description: "Percentage of tickets resolved within SLA."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_ticket_resolution
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(ticket_resolution_percent) AS ticket_resolution_pct
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_ticket_resolution
+        value_expr: last_value(ticket_resolution_pct)
+        delta_expr: delta(ticket_resolution_pct)
+        unit: "%"
+  - id: kpi_system_uptime
+    title: "System Uptime"
+    subject_area: operational_efficiency
+    description: "Overall system uptime percentage."
+    owner: nina.cho@company.com
+    metrics:
+      - id: metric_system_uptime
+        data_source: snowflake_main
+        sql: |
+          SELECT
+            date_id AS date,
+            AVG(system_uptime_percent) AS system_uptime_pct
+          FROM vw_operations_daily
+          WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+    widgets:
+      primary:
+        type: kpi_card
+        dataset: metric_system_uptime
+        value_expr: last_value(system_uptime_pct)
+        delta_expr: delta(system_uptime_pct)
+        unit: "%"
+
+  # Benchmark Management KPIs (non-traditional widget mapping)
+  - id: kpi_benchmark_targets
+    title: "Benchmark Targets"
+    subject_area: benchmark_management
+    description: "Editable targets for peer and industry benchmarks."
+    owner: analytics.ops@company.com
+    tags: [benchmark]
+    metrics:
+      - id: metric_benchmark_targets
+        data_source: sqlite_cache
+        sql: |
+          SELECT
+            kpi_name,
+            peer_avg,
+            industry_avg,
+            unit,
+            direction,
+            threshold_low,
+            threshold_high
+          FROM benchmark_targets
+    widgets:
+      primary:
+        type: benchmark_table
+        dataset: metric_benchmark_targets
+        columns:
+          - kpi_name
+          - peer_avg
+          - industry_avg
+          - unit
+          - direction
+          - threshold_low
+          - threshold_high
+      secondary:
+        - chart_id: widget_benchmark_history
+          type: history_table
+          dataset: metric_benchmark_history
+
+# Additional datasets for benchmark history/editor actions
+auxiliary_metrics:
+  - id: metric_benchmark_history
+    data_source: sqlite_cache
+    sql: |
+      SELECT
+        kpi_name,
+        old_peer_avg,
+        new_peer_avg,
+        old_industry_avg,
+        new_industry_avg,
+        changed_by,
+        changed_at
+      FROM benchmark_history
+      ORDER BY changed_at DESC
+  - id: metric_support_ticket_volume
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        date_id AS date,
+        region_name AS region,
+        SUM(open_tickets) AS open_tickets,
+        SUM(resolved_tickets) AS resolved_tickets
+      FROM fact_support_tickets
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1, 2
+  - id: metric_customer_sentiment
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        sentiment_bucket,
+        COUNT(*) AS responses
+      FROM fact_customer_sentiment
+      WHERE feedback_date BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_product_revenue_mix
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        product_family,
+        SUM(revenue_amount) AS revenue
+      FROM fact_revenue_daily
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_revenue_trend
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        date_id AS date,
+        SUM(revenue_amount) AS revenue
+      FROM fact_revenue_daily
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_revenue_forecast
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        forecast_month AS date,
+        forecast_revenue AS revenue,
+        forecast_lower AS lower_ci,
+        forecast_upper AS upper_ci
+      FROM mart_revenue_forecast
+      WHERE forecast_month BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+  - id: metric_financial_summary
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        metric_name,
+        metric_value,
+        unit
+      FROM mart_financial_summary
+      WHERE snapshot_date = {{ date_range.end }}
+  - id: metric_plan_usage_mix
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        plan_type,
+        SUM(subscribers) AS subscribers,
+        SUM(data_usage_gb) AS data_usage_gb
+      FROM fact_plan_usage
+      WHERE snapshot_date BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_feature_adoption_trend
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        date_id AS date,
+        feature_name,
+        AVG(feature_adoption_percent) AS adoption_pct
+      FROM vw_usage_adoption_daily
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1, 2
+  - id: metric_usage_distribution
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        usage_bucket,
+        COUNT(*) AS subscriber_count
+      FROM mart_usage_histogram
+      WHERE snapshot_date = {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_response_time_region
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        region_name AS region,
+        AVG(service_response_time_hours) AS response_time_hours
+      FROM vw_operations_daily
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+  - id: metric_incident_heatmap
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        region_name AS region,
+        severity,
+        COUNT(*) AS incident_count
+      FROM fact_incident_management
+      WHERE incident_date BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1, 2
+  - id: metric_system_uptime_trend
+    data_source: snowflake_main
+    sql: |
+      SELECT
+        date_id AS date,
+        AVG(system_uptime_percent) AS system_uptime_pct
+      FROM vw_operations_daily
+      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
+      GROUP BY 1
+
+widgets:
+  widget_network_kpi_expanders:
+    type: kpi_expandable
+    dataset: metric_network_availability  # reused for lookup; runtime fetches tooltip JSON
+  widget_benchmark_table:
+    type: data_editor
+    dataset: metric_benchmark_targets
+  widget_benchmark_history:
+    type: table
+    dataset: metric_benchmark_history
+  widget_benchmark_editor:
+    type: form
+    dataset: metric_benchmark_targets
+  chart_support_tickets:
+    type: bar_chart
+    dataset: metric_support_ticket_volume
+    encoding:
+      x: date
+      y: open_tickets
+      color: region
+  chart_customer_sentiment_distribution:
+    type: distribution
+    dataset: metric_customer_sentiment
+    encoding:
+      category: sentiment_bucket
+      value: responses
+  chart_product_mix:
+    type: stacked_bar
+    dataset: metric_product_revenue_mix
+    encoding:
+      x: product_family
+      y: revenue
+  chart_revenue_trend:
+    type: timeseries_line
+    dataset: metric_revenue_trend
+    encoding:
+      x: date
+      y: revenue
+  chart_revenue_forecast:
+    type: forecast_band
+    dataset: metric_revenue_forecast
+    encoding:
+      x: date
+      y: revenue
+      lower: lower_ci
+      upper: upper_ci
+  chart_financial_table:
+    type: table
+    dataset: metric_financial_summary
+    columns: [metric_name, metric_value, unit]
+  chart_plan_usage_mix:
+    type: stacked_bar
+    dataset: metric_plan_usage_mix
+    encoding:
+      x: plan_type
+      y: subscribers
+      color: plan_type
+  chart_feature_adoption_trend:
+    type: multi_series_line
+    dataset: metric_feature_adoption_trend
+    encoding:
+      x: date
+      y: adoption_pct
+      series: feature_name
+  chart_usage_distribution:
+    type: distribution
+    dataset: metric_usage_distribution
+    encoding:
+      category: usage_bucket
+      value: subscriber_count
+  chart_support_tickets_resolved:
+    type: bar_chart
+    dataset: metric_support_ticket_volume
+    encoding:
+      x: date
+      y: resolved_tickets
+      color: region
+  chart_response_time_region:
+    type: bar_chart
+    dataset: metric_response_time_region
+    encoding:
+      x: region
+      y: response_time_hours
+  chart_incident_heatmap:
+    type: heatmap
+    dataset: metric_incident_heatmap
+    encoding:
+      x: region
+      y: severity
+      value: incident_count
+  chart_uptime_trend_ops:
+    type: timeseries_line
+    dataset: metric_system_uptime_trend
+    encoding:
+      x: date
+      y: system_uptime_pct
+
+security:
+  roles:
+    exec:
+      can_view_subject_areas:
+        - network_performance
+        - customer_experience
+        - revenue_monetization
+    analyst:
+      inherits: [exec]
+      can_view_subject_areas:
+        - usage_adoption
+        - operational_efficiency
+        - benchmark_management
+    operator:
+      can_view_subject_areas:
+        - benchmark_management
+      can_edit_widgets:
+        - widget_benchmark_table
+        - widget_benchmark_editor
+  row_filters:
+    analyst:
+      region: "{{ user.region_whitelist }}"
+
+refresh:
+  default_ttl_seconds: 300
+  overrides:
+    kpi_benchmark_targets: 30
+    kpi_network_latency: 120
+  schedule:
+    cron: "*/30 * * * *"
+
+metadata_sources:
+  changelog: docs/CHANGELOG.md
+  generated_on: "2025-08-10"
+  generated_by: "tooling/autogen"
