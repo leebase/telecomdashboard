@@ -47,7 +47,7 @@ filters:
       type: select
       label: Region
       data_source: sqlite_cache
-      sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
+      sql: "SELECT DISTINCT region_name FROM dim_region_view ORDER BY region_name"
       allow_blank: true
   subject_area:
     network_performance:
@@ -55,7 +55,7 @@ filters:
         type: multiselect
         label: Network Element
         data_source: sqlite_cache
-        sql: "SELECT DISTINCT element_name FROM dim_network_element ORDER BY element_name"
+        sql: "SELECT DISTINCT element_name FROM dim_network_element_view ORDER BY element_name"
         allow_blank: true
     customer_experience: []
     revenue_monetization: []
@@ -65,7 +65,7 @@ filters:
         type: select
         label: Operations Region
         data_source: sqlite_cache
-        sql: "SELECT DISTINCT region_name FROM dim_region ORDER BY region_name"
+        sql: "SELECT DISTINCT region_name FROM dim_region_view ORDER BY region_name"
         allow_blank: true
     benchmark_management: []
 
@@ -399,8 +399,8 @@ kpis:
             f.date_id AS date,
             r.region_name AS region,
             AVG(f.mttr_hours) AS mttr_hours
-          FROM fact_network_metrics AS f
-          JOIN dim_region AS r ON r.region_id = f.region_id
+          FROM fact_network_metrics_view AS f
+          JOIN dim_region_view AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1, 2
         dimensions: [date, region]
@@ -899,7 +899,7 @@ kpis:
             r.region_name AS region,
             AVG(o.avg_response_time) AS response_time_hours
           FROM vw_operations_daily AS o
-          JOIN dim_region AS r ON r.region_id = o.region_id
+          JOIN dim_region_view AS r ON r.region_id = o.region_id
           WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
             {% if filters.ops_region %}AND r.region_name = {{ filters.ops_region | quote }}{% endif %}
           GROUP BY 1, 2
@@ -1039,7 +1039,7 @@ kpis:
             direction,
             threshold_low,
             threshold_high
-          FROM benchmark_targets
+          FROM benchmark_targets_view
     widgets:
       primary:
         type: benchmark_table
@@ -1070,7 +1070,7 @@ auxiliary_metrics:
         new_industry_avg,
         changed_by,
         changed_at
-      FROM benchmark_history
+      FROM benchmark_history_view
       ORDER BY changed_at DESC
   - id: metric_support_ticket_volume
     data_source: sqlite_cache
@@ -1080,8 +1080,8 @@ auxiliary_metrics:
         r.region_name AS region,
         SUM(o.incident_count) AS open_tickets,
         SUM(o.incident_count * o.support_ticket_resolution_rate) AS resolved_tickets
-      FROM fact_operations AS o
-      JOIN dim_region AS r ON r.region_id = o.region_id
+      FROM fact_operations_view AS o
+      JOIN dim_region_view AS r ON r.region_id = o.region_id
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_customer_sentiment
@@ -1094,7 +1094,7 @@ auxiliary_metrics:
           ELSE 'Detractor'
         END AS sentiment_bucket,
         COUNT(*) AS responses
-      FROM fact_customer_experience
+      FROM fact_customer_experience_view
       WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_product_revenue_mix
@@ -1103,8 +1103,8 @@ auxiliary_metrics:
       SELECT
         p.product_category AS product_family,
         SUM(f.revenue_amount) AS revenue
-      FROM fact_revenue AS f
-      JOIN dim_product AS p ON p.product_id = f.product_id
+      FROM fact_revenue_view AS f
+      JOIN dim_product_view AS p ON p.product_id = f.product_id
       WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_revenue_trend
@@ -1153,8 +1153,8 @@ auxiliary_metrics:
         p.product_type AS plan_type,
         SUM(f.active_subscribers) AS subscribers,
         SUM(f.data_usage_gb) AS data_usage_gb
-      FROM fact_usage_adoption AS f
-      JOIN dim_product AS p ON p.product_id = f.product_id
+      FROM fact_usage_adoption_view AS f
+      JOIN dim_product_view AS p ON p.product_id = f.product_id
       WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_feature_adoption_trend
@@ -1165,7 +1165,7 @@ auxiliary_metrics:
         r.region_name AS feature_name,
         AVG(u.avg_feature_adoption) AS adoption_pct
       FROM vw_usage_adoption_daily AS u
-      JOIN dim_region AS r ON r.region_id = u.region_id
+      JOIN dim_region_view AS r ON r.region_id = u.region_id
       WHERE u.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_usage_distribution
@@ -1190,7 +1190,7 @@ auxiliary_metrics:
         r.region_name AS region,
         AVG(o.avg_response_time) AS response_time_hours
       FROM vw_operations_daily AS o
-      JOIN dim_region AS r ON r.region_id = o.region_id
+      JOIN dim_region_view AS r ON r.region_id = o.region_id
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1
   - id: metric_incident_heatmap
@@ -1205,7 +1205,7 @@ auxiliary_metrics:
         END AS severity,
         COUNT(*) AS incident_count
       FROM fact_operations AS o
-      JOIN dim_region AS r ON r.region_id = o.region_id
+      JOIN dim_region_view AS r ON r.region_id = o.region_id
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2
   - id: metric_system_uptime_trend

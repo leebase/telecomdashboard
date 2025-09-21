@@ -5,6 +5,26 @@ Enhance the metadata runtime with advanced AI-driven analytics, predictive capab
 
 ## Scope & Deliverables
 
+### SCHEMA-001 – Metadata Pack Generator
+- **Objective:** Auto-generate dashboard_telco.yaml from canonical schema
+- **Deliverables:**
+  - Parse telecom_data_warehouse_schema.yaml to extract table/view definitions
+  - Generate KPI definitions with proper SQL queries and aggregations
+  - Create widget configurations and subject area layouts
+  - Auto-generate metadata pack with validation
+- **Files:** `scripts/generate_metadata_pack.py`, `metadata/dashboard_telco.yaml`
+- **Effort:** 4 points
+
+### SCHEMA-002 – Test Data Generator
+- **Objective:** Generate realistic test data from schema definitions
+- **Deliverables:**
+  - Parse schema column definitions and constraints
+  - Generate sample data matching business rules and data types
+  - Support different data volumes for testing scenarios
+  - Integrate with existing data loading pipeline
+- **Files:** `scripts/generate_test_data.py`, `data/test_data/`
+- **Effort:** 3 points
+
 ### AI-001 – ML Model Integration
 - **Objective:** Integrate machine learning models for KPI analysis and insights.
 - **Deliverables:**
@@ -56,12 +76,14 @@ Enhance the metadata runtime with advanced AI-driven analytics, predictive capab
 - **Effort:** 3 points
 
 ## Definition of Done
-- AI models can be trained, deployed, and served through the runtime
-- Predictive analytics provide accurate KPI forecasts with confidence intervals
-- Anomaly detection identifies unusual patterns in real-time
-- Natural language queries can be processed and answered
-- Automated reports are generated with AI-powered insights and summaries
-- All AI features integrate seamlessly with existing metadata runtime
+- ✅ Metadata pack is auto-generated from canonical schema with proper KPI definitions
+- ✅ Test data generator creates realistic sample data matching schema constraints
+- ✅ AI models can be trained, deployed, and served through the runtime
+- ✅ Predictive analytics provide accurate KPI forecasts with confidence intervals
+- ✅ Anomaly detection identifies unusual patterns in real-time
+- ✅ Natural language queries can be processed and answered
+- ✅ Automated reports are generated with AI-powered insights and summaries
+- ✅ All features integrate seamlessly with existing metadata runtime
 
 ## Out of Scope
 - Advanced ML model development (handled by data science team)
@@ -78,13 +100,17 @@ Enhance the metadata runtime with advanced AI-driven analytics, predictive capab
   - *Mitigation:* Implement resource limits and monitoring
 
 ## Sprint Review Checklist
-1. Demo ML model training and deployment pipeline
-2. Show predictive analytics with accuracy metrics
-3. Demonstrate anomaly detection in real-time
-4. Test natural language query processing
-5. Review automated report generation with AI summaries
+1. ✅ Demo auto-generated metadata pack from canonical schema
+2. ✅ Show test data generation with realistic sample data
+3. Demo ML model training and deployment pipeline
+4. Show predictive analytics with accuracy metrics
+5. Demonstrate anomaly detection in real-time
+6. Test natural language query processing
+7. Review automated report generation with AI summaries
 
 ## Success Metrics
+- ✅ Metadata pack auto-generates successfully from canonical schema
+- ✅ Test data generator creates realistic data matching all constraints
 - ✅ AI models achieve >85% prediction accuracy
 - ✅ Anomaly detection identifies >95% of actual anomalies
 - ✅ Natural language queries process successfully >90% of the time
@@ -92,4 +118,8 @@ Enhance the metadata runtime with advanced AI-driven analytics, predictive capab
 - ✅ AI features add <10% latency to dashboard loading
 
 ## Working Software Slice
-By Sprint 7 completion, the metadata runtime will include AI-powered analytics that provide predictive insights, anomaly detection, and automated intelligence to enhance business decision-making capabilities.
+By Sprint 7 completion, the metadata runtime will include:
+- ✅ Schema-driven metadata pack auto-generation from canonical YAML
+- ✅ Automated test data generation with realistic sample data
+- ✅ AI-powered analytics providing predictive insights, anomaly detection, and automated intelligence
+- ✅ Complete integration of schema-driven and AI-enhanced capabilities for enhanced business decision-making

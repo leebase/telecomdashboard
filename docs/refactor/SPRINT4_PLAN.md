@@ -8,10 +8,6 @@ Ship a production-ready metadata runtime slice that caches KPI results, auto-gen
   - Implement TTL-aware cache module wired into `MetadataDataProvider` and expose CLI hooks for cache inspection/clear.
   - Focus on SQLite-compatible caching with optional materialized views.
   - Unit tests (`tests/data/test_cache.py`) covering hit/miss, invalidation, and TTL expiration.
-- **D1 – Auto-Generate Telco Metadata**
-  - Deliver `tools/generate_telco_metadata.py` that produces the pack consumed by the runtime, with diff review automation.
-  - Ensure generated pack aligns with SQLite views and supports all KPIs.
-  - Tests (`tests/tools/test_generate_telco_metadata.py`) comparing output to fixtures.
 - **D3 – Visual Parity Verification**
   - Add screenshot/DOM diff harness covering all subject areas using the metadata runtime.
   - Baseline assets under `tests/visual/baseline/` for comparison.
@@ -24,6 +20,10 @@ Ship a production-ready metadata runtime slice that caches KPI results, auto-gen
   - Ensure all components (datasource, query compiler, cache) work seamlessly with SQLite.
   - Add integration tests for end-to-end metadata runtime with SQLite data.
   - Document SQLite-specific setup and limitations for development.
+- **Schema Processor Integration**
+  - Integrate the new `scripts/schema_processor.py` with the metadata runtime.
+  - Use generated DDL and views in the development workflow.
+  - Validate schema-driven database structure.
 
 ## Definition of Done
 - `pytest tests/data/test_cache.py -q` passes, confirming cache behavior.
