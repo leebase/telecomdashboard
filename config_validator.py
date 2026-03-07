@@ -49,7 +49,7 @@ class ConfigManager:
             # Summary
             summary = results['summary']
             print(f"\n📊 Summary:")
-            print(f"  Required vars set: {summary['required_vars_set']}/{len(self.validator.REQUIRED_PRODUCTION_VARS)}")
+            print(f"  Required vars set: {summary['required_vars_set']}/{len(self.validator.REQUIRED_VARS)}")
             print(f"  Recommended vars set: {summary['recommended_vars_set']}/{len(self.validator.RECOMMENDED_VARS)}")
             
             return results['valid']

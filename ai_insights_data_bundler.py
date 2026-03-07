@@ -3,7 +3,7 @@ import pandas as pd
 import yaml
 from datetime import datetime
 from improved_metric_cards import get_network_metrics, get_customer_metrics, get_revenue_metrics, get_usage_metrics, get_operations_metrics
-from database_connection import db
+from database_connection import TelecomDatabase, db
 
 def load_prompt_config():
     """Load prompt configuration from YAML file"""
@@ -27,6 +27,34 @@ def bundle_kpi_data_for_insights(tab_name, days=30):
     Returns standardized format ready for LLM processing
     """
     
+    database = TelecomDatabase()
+
+    raw_metric_getters = {
+        "network": database.get_network_metrics,
+        "customer": database.get_customer_metrics,
+        "revenue": database.get_revenue_metrics,
+        "usage": database.get_usage_metrics,
+        "operations": database.get_operations_metrics,
+    }
+
+    raw_metrics = {}
+    raw_getter = raw_metric_getters.get(tab_name)
+    if raw_getter is not None:
+        try:
+            raw_result = raw_getter(days)
+            if hasattr(raw_result, "to_dict"):
+                raw_metrics = raw_result.to_dict()
+            elif isinstance(raw_result, dict):
+                raw_metrics = raw_result
+        except Exception:
+            raw_metrics = {}
+
+    raw_context = {
+        key: value
+        for key, value in raw_metrics.items()
+        if isinstance(value, str)
+    }
+
     # Get current KPI data based on tab
     if tab_name == "network":
         metrics_data = get_network_metrics(days)
@@ -93,6 +121,9 @@ def bundle_kpi_data_for_insights(tab_name, days=30):
             "tooltip": metric.get('tooltip', ''),
             "last_updated": metric.get('last_updated', datetime.now().strftime('%Y-%m-%d %H:%M'))
         }
+
+        if raw_context:
+            kpi_entry["source_context"] = raw_context
         
         bundled_data.append(kpi_entry)
     

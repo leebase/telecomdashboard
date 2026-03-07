@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest>=7.0
+pytest-cov>=4.0
+black>=23.0
+ruff>=0.1.0
+psycopg2-binary>=2.9
+snowflake-connector-python>=4.3
+sqlalchemy>=2.0

@@ -5,3 +5,4 @@ altair>=5.0.0
 PyYAML>=6.0
 plotly>=5.15.0 
 psutil>=5.9.0
+requests>=2.31.0

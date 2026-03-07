@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from database_connection import TelecomDatabase
 from config_manager import ConfigManager, AppConfig
+from llm_service import LLMService
 from src.models.data_models import (
     KPIMetric, MetricValue, TrendData, BenchmarkData,
     NetworkMetrics, CustomerMetrics, QueryParameters
@@ -106,7 +107,7 @@ def test_database(test_db_path):
         conn.execute("""
             INSERT INTO dim_time (time_id, date, year, month, day, quarter) 
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (i+1, date.date(), date.year, date.month, date.day, (date.month-1)//3 + 1))
+        """, (i+1, date.date().isoformat(), date.year, date.month, date.day, (date.month-1)//3 + 1))
     
     # Network metrics test data
     for time_id in range(1, 31):
@@ -224,6 +225,11 @@ def mock_requests():
         mock_post.return_value = mock_response
         yield mock_post
 
+@pytest.fixture
+def llm_service():
+    """Shared LLM service fixture for AI and security tests."""
+    return LLMService()
+
 # Data model fixtures
 @pytest.fixture
 def sample_kpi_metric():
@@ -302,7 +308,7 @@ def performance_monitor():
                 return (self.end_time - self.start_time).total_seconds()
             return None
     
-    return PerformanceMonitor
+    return PerformanceMonitor()
 
 # Parameterized test data
 @pytest.fixture(params=[
@@ -401,4 +407,3 @@ class TestHelpers:
 def test_helpers():
     """Test helper methods"""
     return TestHelpers()
-

@@ -120,7 +120,27 @@ class SecurityManager:
             dangerous_patterns = [
                 r"union\s+select.*from", r"drop\s+table", r"delete\s+from.*where", 
                 r"insert\s+into.*values", r"update.*set.*where", r"create\s+table",
-                r"alter\s+table", r"exec\s*\(", r"execute\s*\("
+                r"alter\s+table", r"exec\s*\(", r"execute\s*\(",
+                r"\bor\s+1\s*=\s*1\b", r"select\s+\*\s+from\s+passwords",
+                r"(?:^|[;|&])\s*(?:cat|grep|curl|wget)\b",
+                r"\.\./", r"\.\.\\", r"/etc/passwd", r"system32\\config\\sam",
+                r"<script\b", r"javascript:", r"document\.cookie",
+                r"db\.collection\.find", r'"\$gt"\s*:', r"\$gt\s*:",
+                r"\)\(uid=\*\)", r"\*\)\(&\(password=\*\)\)",
+                r"ignore\s+all\s+previous\s+instructions",
+                r"disregard\s+safety\s+guidelines",
+                r"forget\s+everything\s+above",
+                r"previous\s+conversation\s+never\s+happened",
+                r"\boverride\s*:",
+                r"jailbreak\s+mode",
+                r"\[inst\].*\[/inst\]",
+                r"human:\s*ignore",
+                r"system:\s*disregard",
+                r"\bas\s+an\s+admin\b.*ignore",
+                r"reveal\s+secrets",
+                r"show\s+internal\s+system\s+information",
+                r"give\s+me\s+admin\s+access",
+                r"print\s+all\s+environment\s+variables"
             ]
             
             prompt_str = str(prompt).lower()

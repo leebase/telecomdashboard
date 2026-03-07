@@ -1,22 +1,173 @@
-# Repository Guidelines
+# Agent Guide: telecomdashboard
 
-## Project Structure & Module Organization
-Main Streamlit app in `app.py`; agent orchestrations in `runAgentsApp.py`. Domain logic stays in `src/` (`core`, `services`, `ui`, `utils`), with reusable agent actions in `agents/`. The star-schema warehouse lives under `data/` (`telecom_db.sqlite`, 19 CSVs, seven dimensions, five fact tables). Review `docs/appArchitecture.md` and `docs/appRequirements.md` for architecture, KPI, and theming context before large changes. Config artifacts live in `config/`; brand themes live in `styles/`.
+> For AI agents working on the telecomdashboard project.
+>
+> This repository adopted AgentFlow after substantial code already existed. Do not assume the project is new just because the AgentFlow files are recent.
 
-## Architecture & Platform Notes
-Streamlit 1.28+, Altair, pandas, and NumPy power the UI. `database_connection.py` layers a 5-minute TTL cache over SQLite reads and is ready for enterprise adapters. `llm_service.py` protects OpenRouter calls with a circuit breaker (five failures trigger a 60 s cooldown). Time selectors (30D/QTD/YTD/12M) feed the warehouse business views. Theme registration runs through `theme_manager.py`; new themes need CSS, a Python module, logo assets, and registry wiring.
+---
 
-## Build, Test, and Development Commands
-Activate the venv (`source venv/bin/activate`). `make install` installs dependencies, `make run` launches the dashboard, and `make run-dev` enables hot reload with `DEBUG=1`. Database prep runs via `make db-setup` + `make db-load`; regenerate data with `python load_csv_data.py`. `make docs` builds Sphinx docs, and `make security-check` runs Bandit and Safety.
+## Startup Protocol
 
-## Coding Style & Naming Conventions
-Use four-space indentation, snake_case names, and Black/isort order enforced by `make lint` or `make lint-fix`. Keep ≤100 character lines per flake8. Document public functions with succinct docstrings clarifying inputs, outputs, and business impact. Store prompt YAML, theme CSS, and fixtures beside the feature that owns them.
+At the start of every session, in order:
 
-## Testing Guidelines
-Pytest is configured in `pytest.ini` with strict markers and an 80% coverage floor. Run `pytest tests/ -v` for the suite or scope to directories (`tests/security`, `tests/performance`, etc.). Mirror the `tests/` layout when adding cases and prefer `test_<feature>.py` naming.
+1. Read `AGENTS.md`
+2. Read `context.md`
+3. Read `WHERE_AM_I.md`
+4. Read `result-review.md`
+5. Read `sprint-plan.md`
 
-## Commit & Pull Request Guidelines
-Write imperative, scoped commits (e.g., `Add circuit breaker telemetry`). PRs should restate intent, list verification steps (`pytest`, `make lint`, relevant `make test-*`), link issues/specs, and attach UI or agent screenshots or demos when visuals change. Highlight configuration updates (new env vars, YAML keys) in the description.
+If the task touches product direction or architecture, also read `product-definition.md` (or the compatibility alias `project-definition.md`) and `architecture.md`.
 
-## Security & Configuration Tips
-Never commit `config.secrets.yaml`; rely on `setup_secure_environment.py` or environment variables (`LLM_API_KEY`, `SECURE_MODE`). Lock down generated SQLite assets with `chmod 600`. When integrating new data sources or APIs, extend `secure_config_manager.py`, update `SECURITY.md`, and double-check caching or prompt changes against the security checklist. Route sensitive logging through `logging_config.py` and scrub PII before writing to `logs/`.
+---
+
+## Project Reality
+
+The primary product in this repo is a Python/Streamlit telecom KPI dashboard.
+
+Key entry points and areas:
+- `app.py` is the main dashboard application.
+- `data/` contains the SQLite database and CSV warehouse inputs.
+- `database_connection.py`, `config_manager.py`, `health_check.py`, `security_manager.py`, and `llm_service.py` support the operational feature set.
+- `tests/` contains security, AI safety, performance, integration, config, and unit tests.
+- `runAgentsApp.py`, `agents/`, and `models/play_models.py` are a separate multi-agent prototype. Treat them as secondary until the human confirms they are part of the revival scope.
+
+The scaffolded package entry point in `src/telecomdashboard/main.py` is not the primary runtime for this project.
+
+### Repo Layout
+
+- `app.py`: primary dashboard entry point
+- `runAgentsApp.py`: separate Streamlit prototype for agent orchestration
+- `agents/`, `models/`: agent prototype internals
+- `src/`: partial package-style refactor and scaffold leftovers
+- `data/`: SQLite database, CSVs, schema, and data catalog
+- `docs/`: historical architecture, deployment, API, and feature docs
+- `styles/`: theme assets
+- `tests/`: automated validation suites
+
+---
+
+## Available Skills
+
+Load the relevant skill file when the trigger applies.
+
+| Trigger | Skill to Load |
+|---------|---------------|
+| You are implementing a feature or fix | `skills/development-loop.md` |
+| You are about to test your work | `skills/test-as-lee.md` |
+| You are about to commit | `skills/documentation.md` |
+| You are creating a backlog item | `skills/backlog.md` |
+| You are closing a sprint or preparing a release | `skills/code-review.md` |
+
+### Test As Lee Acceptance Bar
+
+For any change that affects the main dashboard UI, startup path, theme layer, config path, or first-run experience, do not claim success until the real entry point is validated at the browser level.
+
+Minimum acceptance:
+- Launch `streamlit run app.py`
+- Confirm the first screen is visibly populated, not just free of Python exceptions
+- Verify the main title/tabs/KPI region are present in a browser render, not only via `AppTest`
+- Treat a blank, hidden, or obviously malformed first screen as a failed test even if pytest is green
+
+`streamlit.testing.v1.AppTest` is useful but insufficient on its own for CSS/DOM visibility regressions.
+
+---
+
+## Task Rehydration
+
+Before continuing any task mid-session:
+
+1. Re-read `sprint-plan.md`
+2. Re-read any files you changed earlier in the session
+3. Re-check the current objective in `context.md`
+4. Confirm whether the task is for the main dashboard or the separate agent prototype
+
+---
+
+## Autonomy Modes
+
+The `Mode` field in `context.md` controls how independently you work:
+
+| Mode | Name | Behavior |
+|------|------|----------|
+| 1 | Supervised | Ask before every significant action |
+| 2 | Collaborative | Implement routinely, ask on material decisions |
+| 3 | Autonomous | Execute independently within guardrails |
+
+Default is Mode 2 unless `context.md` says otherwise.
+
+---
+
+## Guardrails
+
+### Allowed
+
+- Modify code and docs inside this repository
+- Add tests for changed behavior
+- Update AgentFlow memory files at the end of the session
+- Create backlog items in `backlog/candidates/`
+- Reconcile stale project documentation with the actual codebase
+
+### Not Allowed Without Explicit Permission
+
+- Add external runtime dependencies
+- Make breaking changes to current dashboard behavior
+- Delete files just because they look old
+- Assume the multi-agent prototype is abandoned and remove it
+- Commit directly to protected branches
+- Skip documenting important discoveries about project drift
+
+---
+
+## Documentation Map
+
+| File | Purpose |
+|------|---------|
+| `context.md` | Session state and immediate next actions |
+| `WHERE_AM_I.md` | Product-level progress and risks |
+| `result-review.md` | Running log of completed work and historical milestones |
+| `sprint-plan.md` | Current tactical sprint |
+| `project-plan.md` | Revival roadmap and medium-term priorities |
+| `product-definition.md` | Product goals and scope boundaries |
+| `project-definition.md` | Compatibility alias for product scope used by other AgentFlow repos |
+| `architecture.md` | Current technical architecture and known drift |
+| `feedback.md` | Review findings and follow-up items |
+| `sprint-review.md` | External sprint assessment |
+
+For deeper legacy detail, use the docs already in `docs/`, especially `docs/appArchitecture.md`, `docs/api.md`, `docs/deployment.md`, and `docs/CONFIGURATION_GUIDE.md`.
+
+---
+
+## Communication Style
+
+- Be concise
+- Use concrete file paths and commands
+- Distinguish facts from assumptions
+- Call out repo drift immediately
+- Prefer preserving working behavior over neatness
+
+---
+
+## Practical Commands
+
+Use the real project entry points and validation commands:
+
+- Install runtime deps: `pip install -r requirements.txt`
+- Run main app: `streamlit run app.py`
+- Run agent prototype: `streamlit run runAgentsApp.py`
+- Load local data: `python load_csv_data.py`
+- Run tests: `pytest tests/ -v`
+
+Treat `Makefile` as helpful but not authoritative until the dependency/setup drift is cleaned up. It currently references `requirements-dev.txt`, which is missing.
+
+---
+
+## Session End Requirement
+
+Before ending a work session:
+
+1. Update `context.md`
+2. Update `result-review.md`
+3. Update `sprint-plan.md` if task status changed
+4. Update `WHERE_AM_I.md` if project posture or risks changed
+
+Treat these updates as part of the work, not optional cleanup.

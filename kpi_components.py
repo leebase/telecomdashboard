@@ -168,7 +168,7 @@ def render_line_chart(
     
     # Wrap in Cognizant-style container
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_bar_chart(df, title, y_label="Value", horizontal=False):
@@ -261,7 +261,7 @@ def render_bar_chart(df, title, y_label="Value", horizontal=False):
     
     # Wrap in Cognizant-style container
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_area_chart(df, title, y_label="Value"):
@@ -319,7 +319,7 @@ def render_area_chart(df, title, y_label="Value"):
     
     # Wrap in Cognizant-style container
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_distribution(df, title, x_label="Value"):
@@ -377,7 +377,7 @@ def render_distribution(df, title, x_label="Value"):
     
     # Wrap in Cognizant-style container
     st.markdown('<div class="chart-container">', unsafe_allow_html=True)
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
     st.markdown('</div>', unsafe_allow_html=True)
 
 def render_kpi_expander(name, definition, chart_fn):

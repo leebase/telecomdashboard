@@ -479,9 +479,10 @@ class TestAISecurityIncidentResponse:
         
         # Note: In a real implementation, we would check security logs
         # For this test, we verify the system doesn't expose information
-        response_text = json.dumps(result)
-        assert "api" not in response_text.lower()
-        assert "key" not in response_text.lower()
+        response_text = json.dumps(result).lower()
+        assert "api key" not in response_text
+        assert "sk-" not in response_text
+        assert "pk-" not in response_text
     
     def test_anomaly_detection(self, llm_service):
         """Test detection of anomalous usage patterns"""

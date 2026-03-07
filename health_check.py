@@ -40,32 +40,57 @@ class FeatureFlags:
     
     def __init__(self):
         """Initialize feature flag system"""
-        self.flags = {
-            # AI Features
-            "ai_insights_enabled": True,
-            "ai_insights_beta": False,
-            "pii_scrubbing_enabled": True,
-            
-            # Performance Features
-            "cache_ttl_enabled": True,
-            "circuit_breaker_enabled": True,
-            "connection_pooling_enabled": True,
-            
-            # Enterprise Features
-            "structured_logging": False,  # Enable in production
-            "snowflake_query_tagging": True,
-            "health_checks_detailed": True,
-            
-            # UI Features
-            "theme_switching_enabled": True,
-            "benchmark_management": True,
-            "print_mode_enabled": True,
-            
-            # Security Features
-            "security_headers_enabled": True,
-            "rate_limiting_enabled": True,
-            "sql_injection_protection": True,
-        }
+        config = get_config()
+        features = getattr(config, "features", None)
+
+        if features is not None:
+            self.flags = {
+                # Canonical names from FeatureConfig
+                "ai_insights": features.ai_insights,
+                "ai_insights_beta": features.ai_insights_beta,
+                "pii_scrubbing": features.pii_scrubbing,
+                "cache_ttl": features.cache_ttl,
+                "circuit_breaker": features.circuit_breaker,
+                "connection_pooling": features.connection_pooling,
+                "structured_logging": features.structured_logging,
+                "snowflake_query_tagging": features.snowflake_query_tagging,
+                "health_checks_detailed": features.health_checks_detailed,
+                "theme_switching": features.theme_switching,
+                "benchmark_management": features.benchmark_management,
+                "print_mode": features.print_mode,
+                "security_headers": features.security_headers,
+                "rate_limiting": features.rate_limiting,
+                "sql_injection_protection": features.sql_injection_protection,
+
+                # Compatibility aliases for older callers
+                "ai_insights_enabled": features.ai_insights,
+                "pii_scrubbing_enabled": features.pii_scrubbing,
+                "cache_ttl_enabled": features.cache_ttl,
+                "circuit_breaker_enabled": features.circuit_breaker,
+                "connection_pooling_enabled": features.connection_pooling,
+                "theme_switching_enabled": features.theme_switching,
+                "print_mode_enabled": features.print_mode,
+                "security_headers_enabled": features.security_headers,
+                "rate_limiting_enabled": features.rate_limiting,
+            }
+        else:
+            self.flags = {
+                "ai_insights_enabled": True,
+                "ai_insights_beta": False,
+                "pii_scrubbing_enabled": True,
+                "cache_ttl_enabled": True,
+                "circuit_breaker_enabled": True,
+                "connection_pooling_enabled": True,
+                "structured_logging": False,
+                "snowflake_query_tagging": True,
+                "health_checks_detailed": True,
+                "theme_switching_enabled": True,
+                "benchmark_management": True,
+                "print_mode_enabled": True,
+                "security_headers_enabled": True,
+                "rate_limiting_enabled": True,
+                "sql_injection_protection": True,
+            }
         
         # Load environment overrides
         self._load_environment_overrides()
@@ -348,6 +373,10 @@ class HealthChecker:
             "version": APP_VERSION,
             "environment": __import__('os').getenv("ENVIRONMENT", "development")
         }
+
+    def run_all_checks(self) -> Dict[str, Any]:
+        """Compatibility wrapper for callers expecting a single aggregate runner."""
+        return self.get_comprehensive_health()
     
     def get_simple_health(self) -> Dict[str, str]:
         """Get simple health check for load balancers"""

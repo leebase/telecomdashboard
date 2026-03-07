@@ -22,6 +22,12 @@ class ConfigValidationError(Exception):
     missing_vars: List[str] = field(default_factory=list)
     invalid_vars: List[str] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        super().__init__(self.message)
+
+    def __str__(self) -> str:
+        return self.message
+
 class EnvironmentValidator:
     """
     Environment variable validation for production deployment
@@ -29,9 +35,10 @@ class EnvironmentValidator:
     Validates critical configuration before application startup
     """
     
-    # Required environment variables for production
-    REQUIRED_PRODUCTION_VARS = [
+    # Required environment variables for every environment
+    REQUIRED_VARS = [
         'ENVIRONMENT',  # production, staging, development
+        'LLM_API_KEY',  # AI functionality is a core product capability
     ]
     
     # Optional but recommended environment variables
@@ -78,7 +85,7 @@ class EnvironmentValidator:
         }
         
         # Check required variables
-        for var in cls.REQUIRED_PRODUCTION_VARS:
+        for var in cls.REQUIRED_VARS:
             value = os.getenv(var)
             if not value:
                 results['missing_required'].append(var)
@@ -104,11 +111,14 @@ class EnvironmentValidator:
         
         # Set overall validity
         results['valid'] = len(results['errors']) == 0
+
+        unique_missing_required = set(results['missing_required'])
+        unique_missing_recommended = set(results['missing_recommended'])
         
         # Generate summary
         results['summary'] = {
-            'required_vars_set': len(cls.REQUIRED_PRODUCTION_VARS) - len([v for v in results['missing_required'] if v in cls.REQUIRED_PRODUCTION_VARS]),
-            'recommended_vars_set': len(cls.RECOMMENDED_VARS) - len(results['missing_recommended']),
+            'required_vars_set': len(cls.REQUIRED_VARS) - len([v for v in unique_missing_required if v in cls.REQUIRED_VARS]),
+            'recommended_vars_set': len(cls.RECOMMENDED_VARS) - len(unique_missing_recommended),
             'total_errors': len(results['errors']),
             'total_warnings': len(results['warnings'])
         }
@@ -162,31 +172,23 @@ class EnvironmentValidator:
         Raises:
             ConfigValidationError: If critical validation fails
         """
-        try:
-            validation_results = cls.validate_environment()
-            
-            # Log validation results
-            if validation_results['valid']:
-                logger.info(f"✅ Environment validation passed for {validation_results['environment']} environment")
-                if validation_results['warnings']:
-                    for warning in validation_results['warnings']:
-                        logger.warning(f"⚠️ {warning}")
-            else:
-                logger.error(f"❌ Environment validation failed for {validation_results['environment']} environment")
-                for error in validation_results['errors']:
-                    logger.error(f"🚨 {error}")
-                
-                # Raise exception for critical failures
-                raise ConfigValidationError(
-                    message=f"Environment validation failed with {len(validation_results['errors'])} errors",
-                    missing_vars=validation_results['missing_required']
-                )
-            
-            return validation_results['valid']
-            
-        except Exception as e:
-            logger.error(f"Configuration validation error: {e}")
-            return False
+        validation_results = cls.validate_environment()
+
+        if validation_results['valid']:
+            logger.info(f"✅ Environment validation passed for {validation_results['environment']} environment")
+            for warning in validation_results['warnings']:
+                logger.warning(f"⚠️ {warning}")
+            return True
+
+        logger.error(f"❌ Environment validation failed for {validation_results['environment']} environment")
+        for error in validation_results['errors']:
+            logger.error(f"🚨 {error}")
+
+        raise ConfigValidationError(
+            message=f"Environment validation failed with {len(validation_results['errors'])} errors",
+            missing_vars=validation_results['missing_required'],
+            invalid_vars=validation_results['errors'],
+        )
 
 @dataclass
 class DatabaseConfig:
@@ -196,6 +198,16 @@ class DatabaseConfig:
     enable_foreign_keys: bool = True
     cache_size: int = 32
     trend_cache_size: int = 16
+
+    def __post_init__(self) -> None:
+        if not self.path.endswith((".sqlite", ".db")):
+            raise ValueError("Database path must end with .sqlite or .db")
+        if self.connection_timeout <= 0:
+            raise ValueError("Database connection timeout must be positive")
+        if self.cache_size < 1:
+            raise ValueError("Database cache size must be at least 1")
+        if self.trend_cache_size < 1:
+            raise ValueError("Trend cache size must be at least 1")
 
 @dataclass
 class UIConfig:
@@ -207,6 +219,12 @@ class UIConfig:
     sidebar_state: str = "expanded"
     show_debug_info: bool = False
 
+    def __post_init__(self) -> None:
+        if self.layout not in {"wide", "centered"}:
+            raise ValueError("Layout must be either 'wide' or 'centered'")
+        if self.sidebar_state not in {"expanded", "collapsed", "auto"}:
+            raise ValueError("Sidebar state must be one of: expanded, collapsed, auto")
+
 @dataclass
 class SecurityConfig:
     """Security configuration settings"""
@@ -217,6 +235,10 @@ class SecurityConfig:
     enable_security_logging: bool = True
     log_file: str = "security.log"
 
+    def __post_init__(self) -> None:
+        if not 1 <= self.max_requests_per_minute <= 1000:
+            raise ValueError("Max requests per minute must be between 1 and 1000")
+
 @dataclass
 class PerformanceConfig:
     """Performance optimization settings"""
@@ -226,6 +248,14 @@ class PerformanceConfig:
     enable_lazy_loading: bool = True
     concurrent_requests: int = 5
 
+    def __post_init__(self) -> None:
+        if self.cache_ttl_seconds < 0:
+            raise ValueError("Cache TTL cannot be negative")
+        if self.max_dataframe_rows < 100:
+            raise ValueError("Max dataframe rows must be at least 100")
+        if self.concurrent_requests < 1:
+            raise ValueError("Concurrent requests must be at least 1")
+
 @dataclass
 class AIConfig:
     """AI/LLM configuration settings"""
@@ -234,6 +264,14 @@ class AIConfig:
     max_tokens: int = 2000
     api_timeout: int = 30
     enable_insights: bool = True
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.temperature <= 2:
+            raise ValueError("AI temperature must be between 0 and 2")
+        if not 100 <= self.max_tokens <= 10000:
+            raise ValueError("AI max tokens must be between 100 and 10000")
+        if self.api_timeout <= 0:
+            raise ValueError("AI API timeout must be positive")
 
 @dataclass
 class FeatureConfig:
@@ -284,17 +322,11 @@ class AppConfig:
     
     def _validate_config(self) -> None:
         """Validate configuration values"""
-        if self.database.cache_size < 1:
-            raise ValueError("Database cache size must be at least 1")
-        
-        if self.performance.cache_ttl_seconds < 0:
-            raise ValueError("Cache TTL cannot be negative")
-        
-        if self.ai.temperature < 0 or self.ai.temperature > 2:
-            raise ValueError("AI temperature must be between 0 and 2")
-        
-        if self.performance.max_dataframe_rows < 100:
-            raise ValueError("Max dataframe rows must be at least 100")
+        DatabaseConfig(**vars(self.database))
+        UIConfig(**vars(self.ui))
+        SecurityConfig(**vars(self.security))
+        PerformanceConfig(**vars(self.performance))
+        AIConfig(**vars(self.ai))
 
 class ConfigManager:
     """Centralized configuration management"""
@@ -326,7 +358,16 @@ class ConfigManager:
                 logger.info("Using default configuration")
         
         # Return default configuration
-        return AppConfig()
+        return self._create_config_from_dict({})
+
+    @staticmethod
+    def _coerce_feature_flag(value: str) -> bool:
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        raise ValueError(f"Invalid feature flag value: {value}")
     
     def save_config(self, config: Optional[AppConfig] = None) -> None:
         """Save configuration to file"""
@@ -343,43 +384,54 @@ class ConfigManager:
     
     def _create_config_from_dict(self, config_data: Dict[str, Any]) -> AppConfig:
         """Create AppConfig from dictionary"""
-        config = AppConfig()
-        
-        # Update database config
-        if 'database' in config_data:
-            db_config = config_data['database']
-            for key, value in db_config.items():
-                if hasattr(config.database, key):
-                    setattr(config.database, key, value)
-        
-        # Update UI config
-        if 'ui' in config_data:
-            ui_config = config_data['ui']
-            for key, value in ui_config.items():
-                if hasattr(config.ui, key):
-                    setattr(config.ui, key, value)
-        
-        # Update security config
-        if 'security' in config_data:
-            security_config = config_data['security']
-            for key, value in security_config.items():
-                if hasattr(config.security, key):
-                    setattr(config.security, key, value)
-        
-        # Update performance config
-        if 'performance' in config_data:
-            perf_config = config_data['performance']
-            for key, value in perf_config.items():
-                if hasattr(config.performance, key):
-                    setattr(config.performance, key, value)
-        
-        # Update AI config
-        if 'ai' in config_data:
-            ai_config = config_data['ai']
-            for key, value in ai_config.items():
-                if hasattr(config.ai, key):
-                    setattr(config.ai, key, value)
-        
+        database_defaults = vars(DatabaseConfig())
+        ui_defaults = vars(UIConfig())
+        security_defaults = vars(SecurityConfig())
+        performance_defaults = vars(PerformanceConfig())
+        ai_defaults = vars(AIConfig())
+        feature_defaults = vars(FeatureConfig())
+
+        config = AppConfig(
+            database=DatabaseConfig(**{
+                key: value
+                for key, value in {**database_defaults, **config_data.get('database', {})}.items()
+                if key in database_defaults
+            }),
+            ui=UIConfig(**{
+                key: value
+                for key, value in {**ui_defaults, **config_data.get('ui', {})}.items()
+                if key in ui_defaults
+            }),
+            security=SecurityConfig(**{
+                key: value
+                for key, value in {**security_defaults, **config_data.get('security', {})}.items()
+                if key in security_defaults
+            }),
+            performance=PerformanceConfig(**{
+                key: value
+                for key, value in {**performance_defaults, **config_data.get('performance', {})}.items()
+                if key in performance_defaults
+            }),
+            ai=AIConfig(**{
+                key: value
+                for key, value in {**ai_defaults, **config_data.get('ai', {})}.items()
+                if key in ai_defaults
+            }),
+            features=FeatureConfig(**{
+                key: value
+                for key, value in {**feature_defaults, **config_data.get('features', {})}.items()
+                if key in feature_defaults
+            }),
+        )
+
+        for key in feature_defaults:
+            env_var = f"FEATURE_{key.upper()}"
+            env_value = os.getenv(env_var)
+            if env_value is None:
+                continue
+            setattr(config.features, key, self._coerce_feature_flag(env_value))
+
+        config._validate_config()
         return config
     
     def _config_to_dict(self, config: AppConfig) -> Dict[str, Any]:
@@ -421,6 +473,26 @@ class ConfigManager:
                 'max_tokens': config.ai.max_tokens,
                 'api_timeout': config.ai.api_timeout,
                 'enable_insights': config.ai.enable_insights,
+            },
+            'features': {
+                'ai_insights': config.features.ai_insights,
+                'ai_insights_beta': config.features.ai_insights_beta,
+                'pii_scrubbing': config.features.pii_scrubbing,
+                'cache_ttl': config.features.cache_ttl,
+                'circuit_breaker': config.features.circuit_breaker,
+                'connection_pooling': config.features.connection_pooling,
+                'structured_logging': config.features.structured_logging,
+                'snowflake_query_tagging': config.features.snowflake_query_tagging,
+                'health_checks_detailed': config.features.health_checks_detailed,
+                'theme_switching': config.features.theme_switching,
+                'benchmark_management': config.features.benchmark_management,
+                'print_mode': config.features.print_mode,
+                'security_headers': config.features.security_headers,
+                'rate_limiting': config.features.rate_limiting,
+                'sql_injection_protection': config.features.sql_injection_protection,
+                'debug_mode': config.features.debug_mode,
+                'test_mode': config.features.test_mode,
+                'performance_monitoring': config.features.performance_monitoring,
             }
         }
     

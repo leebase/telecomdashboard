@@ -19,9 +19,10 @@ structlog>=21.1.0
 python-json-logger>=2.0.0
 
 # Environment and configuration security
-pydantic>=1.8.0
+pydantic>=1.8.0,<2
 pyyaml>=6.0
 
 # Additional security tools for production
 bandit>=1.7.0  # Security linter
-safety>=1.10.0  # Vulnerability scanner
+# Install `safety` in a separate tooling environment for now; current app/test
+# dependencies require `pydantic<2`, while recent `safety` releases do not.

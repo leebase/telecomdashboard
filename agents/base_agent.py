@@ -97,11 +97,17 @@ class BaseAgent(ABC):
     def get_status(self) -> Dict[str, Any]:
         """Get current agent status"""
         with self._lock:
+            state = self.state.to_dict()
             return {
                 "agent_id": self.agent_id,
                 "name": self.name,
                 "subject_area": self.subject_area.value,
-                "state": self.state.to_dict(),
+                # Keep legacy top-level fields for older tests and demo code.
+                "status": state["status"],
+                "progress": state["progress"],
+                "current_task": state["current_task"],
+                "error_message": state["error_message"],
+                "state": state,
                 "workflow_status": self.workflow_status.to_dict(),
                 "plays_count": len(self.generated_plays),
                 "is_running": self.state.status == AgentStatus.ANALYZING

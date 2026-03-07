@@ -18,7 +18,7 @@ pii_scrubbing:
     mac_addresses: false # Keep MAC addresses for network analysis
     
     # Personal names (aggressive - may impact business analysis)
-    names: false         # Keep names as they may be business-relevant
+    names: true          # Redact names before prompts leave the local system
     
     # Custom patterns (can be extended)
     custom_patterns: []
@@ -28,7 +28,7 @@ pii_scrubbing:
     email: "[EMAIL_REDACTED]"
     phone: "[PHONE_REDACTED]"
     ssn: "[SSN_REDACTED]"
-    credit_card: "[CARD_REDACTED]"
+    credit_card: "[CREDIT_CARD_REDACTED]"
     ip_address: "[IP_REDACTED]"
     mac_address: "[MAC_REDACTED]"
     name: "[NAME_REDACTED]"

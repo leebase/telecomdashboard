@@ -49,7 +49,8 @@ class ConnectionPool:
         
         self._pool = Queue(maxsize=max_connections)
         self._active_connections = 0
-        self._lock = threading.Lock()
+        # Pool expansion can happen from code paths that already hold the lock.
+        self._lock = threading.RLock()
         
         # Pre-populate with minimum connections
         for _ in range(min_connections):
@@ -412,13 +413,13 @@ class SnowflakeAdapter(DatabaseAdapter):
                 cursor.execute(f"ALTER SESSION SET QUERY_TAG = '{query_tag}'")
                 logger.info(f"Snowflake query tagged: {query_tag}")
                 
-                # Execute the actual query
+                # Execute through the Snowflake cursor API directly so the
+                # connector remains the source of truth for DataFrame fetches.
                 if params:
-                    # Snowflake uses different parameter syntax
                     cursor.execute(query, params)
-                    result = cursor.fetch_pandas_all()
                 else:
-                    result = pd.read_sql(query, conn)
+                    cursor.execute(query)
+                result = cursor.fetch_pandas_all()
                 
                 # Log query execution for audit
                 logger.info(f"Snowflake query executed successfully, returned {len(result)} rows")

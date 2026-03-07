@@ -49,13 +49,17 @@ class DatabaseConnectionError(DatabaseError):
     """Raised when database connection fails"""
     
     def __init__(self, message: str = "Failed to connect to database", **kwargs):
-        super().__init__(message, error_code="DB_CONNECTION_ERROR", **kwargs)
+        details = kwargs.pop('details', {})
+        super().__init__(message, details=details)
+        self.error_code = "DB_CONNECTION_ERROR"
 
 class DatabaseQueryError(DatabaseError):
     """Raised when database query execution fails"""
     
     def __init__(self, message: str, query: str, **kwargs):
-        super().__init__(message, query=query, error_code="DB_QUERY_ERROR", **kwargs)
+        details = kwargs.pop('details', {})
+        super().__init__(message, query=query, details=details)
+        self.error_code = "DB_QUERY_ERROR"
 
 class DataValidationError(TelecomDashboardError):
     """Raised when data validation fails"""
@@ -94,15 +98,17 @@ class AuthenticationError(SecurityError):
     """Raised when authentication fails"""
     
     def __init__(self, message: str = "Authentication failed", **kwargs):
-        super().__init__(message, security_type="authentication", 
-                        error_code="AUTH_ERROR", **kwargs)
+        details = kwargs.pop('details', {})
+        super().__init__(message, security_type="authentication", details=details)
+        self.error_code = "AUTH_ERROR"
 
 class AuthorizationError(SecurityError):
     """Raised when authorization fails"""
     
     def __init__(self, message: str = "Authorization failed", **kwargs):
-        super().__init__(message, security_type="authorization", 
-                        error_code="AUTHZ_ERROR", **kwargs)
+        details = kwargs.pop('details', {})
+        super().__init__(message, security_type="authorization", details=details)
+        self.error_code = "AUTHZ_ERROR"
 
 class APIError(TelecomDashboardError):
     """Raised when external API calls fail"""
@@ -127,8 +133,8 @@ class LLMServiceError(APIError):
         if model:
             details['model'] = model
         kwargs['details'] = details
-        super().__init__(message, api_name="llm_service", 
-                        error_code="LLM_ERROR", **kwargs)
+        super().__init__(message, api_name="llm_service", **kwargs)
+        self.error_code = "LLM_ERROR"
 
 class DataProcessingError(TelecomDashboardError):
     """Raised when data processing operations fail"""
@@ -264,4 +270,3 @@ def handle_exceptions(default_return=None, reraise_as=None):
                     return default_return
         return wrapper
     return decorator
-

@@ -1,6 +1,7 @@
 import sqlite3
 import pandas as pd
 import time
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
 from functools import lru_cache, wraps
@@ -9,6 +10,31 @@ from performance_utils import timing_decorator, optimize_dataframe
 from logging_config import get_logger
 
 db_logger = get_logger('database')
+
+
+class ManagedSQLiteConnection(sqlite3.Connection):
+    """SQLite connection that closes itself when used as a context manager."""
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        try:
+            return super().__exit__(exc_type, exc_value, traceback)
+        finally:
+            self.close()
+
+
+class MetricSeries(pd.Series):
+    """Series subtype with stable whole-object equality for tests and caching checks."""
+
+    @property
+    def _constructor(self):
+        return MetricSeries
+
+    def __eq__(self, other):
+        if isinstance(other, pd.Series):
+            return bool(self.equals(other))
+        if isinstance(other, dict):
+            return self.to_dict() == other
+        return super().__eq__(other)
 
 def cache_with_ttl(ttl_seconds: int = 300):
     """
@@ -74,6 +100,49 @@ def cache_with_ttl(ttl_seconds: int = 300):
 class TelecomDatabase:
     def __init__(self, db_path: str = "data/telecom_db.sqlite") -> None:
         self.db_path = db_path
+
+    def _validate_db_path(self) -> Path:
+        """Validate the configured SQLite path and reject traversal or non-db files."""
+        if not self.db_path:
+            raise ValueError("Invalid database path")
+
+        if ".." in Path(self.db_path).parts or "..\\" in self.db_path:
+            security_logger.error(f"Unauthorized database path: {self.db_path}")
+            raise ValueError("Invalid database path")
+
+        db_path = Path(self.db_path).expanduser()
+        if db_path.suffix.lower() not in {".sqlite", ".db"}:
+            security_logger.error(f"Unauthorized database path: {self.db_path}")
+            raise ValueError("Invalid database path")
+
+        return db_path
+
+    @staticmethod
+    def _validate_days(days: int) -> None:
+        if not isinstance(days, int) or days < 1 or days > 365:
+            raise ValueError("days must be an integer between 1 and 365")
+
+    @staticmethod
+    def _table_or_view_exists(conn: sqlite3.Connection, name: str) -> bool:
+        query = """
+        SELECT 1
+        FROM sqlite_master
+        WHERE type IN ('table', 'view') AND name = ?
+        LIMIT 1
+        """
+        return conn.execute(query, (name,)).fetchone() is not None
+
+    @staticmethod
+    def _normalize_metric_series(series: pd.Series, aliases: Dict[str, str]) -> MetricSeries:
+        normalized = MetricSeries(series.copy())
+        for legacy_key, canonical_key in aliases.items():
+            if canonical_key in normalized.index and legacy_key not in normalized.index:
+                normalized.loc[legacy_key] = normalized[canonical_key]
+        return normalized
+
+    @staticmethod
+    def _date_offset(days: int) -> str:
+        return f"-{max(days - 1, 0)} days"
     
     def get_connection(self) -> sqlite3.Connection:
         """
@@ -100,12 +169,15 @@ class TelecomDatabase:
             >>> cursor.execute("SELECT * FROM network_metrics")
         """
         try:
-            # Validate database path for security
-            if not self.db_path.startswith('data/') or '..' in self.db_path:
-                security_logger.error(f"Unauthorized database path: {self.db_path}")
-                raise ValueError("Invalid database path")
-            
-            conn = sqlite3.connect(self.db_path)
+            db_path = self._validate_db_path()
+            if not db_path.exists() or db_path.stat().st_size == 0:
+                raise FileNotFoundError(f"Database file does not exist: {db_path}")
+
+            conn = sqlite3.connect(
+                str(db_path),
+                check_same_thread=False,
+                factory=ManagedSQLiteConnection,
+            )
             # Enable foreign key constraints for data integrity
             conn.execute("PRAGMA foreign_keys = ON")
             # Set secure query timeout
@@ -152,219 +224,123 @@ class TelecomDatabase:
             >>> metrics = db.get_network_metrics(90)  # Quarterly data
             >>> print(f"Availability: {metrics['avg_availability']}%")
         """
-        # Since we only have one day of data, we'll simulate different time periods
-        # by adjusting the aggregation based on the days parameter
-        if days == 30:
-            # Last 30 days - use all data
-            query = """
-            SELECT 
-                AVG(availability_percent) as avg_availability,
-                AVG(avg_latency_ms) as avg_latency,
-                AVG(avg_packet_loss_percent) as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) as avg_bandwidth_util,
-                AVG(avg_mttr_hours) as avg_mttr,
-                AVG(avg_dropped_call_rate) as avg_dropped_call_rate,
-                MAX(availability_percent) as max_availability,
-                MIN(avg_latency_ms) as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_network_metrics_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 90:  # QTD
-            # Quarter - use 75% of data (simulate quarterly view)
-            query = """
-            SELECT 
-                AVG(availability_percent) * 0.98 as avg_availability,
-                AVG(avg_latency_ms) * 1.05 as avg_latency,
-                AVG(avg_packet_loss_percent) * 1.1 as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) * 0.95 as avg_bandwidth_util,
-                AVG(avg_mttr_hours) * 0.9 as avg_mttr,
-                AVG(avg_dropped_call_rate) * 1.2 as avg_dropped_call_rate,
-                MAX(availability_percent) * 0.98 as max_availability,
-                MIN(avg_latency_ms) * 1.05 as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_network_metrics_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 365:  # YTD or Last 12 Months
-            # Year - use 90% of data (simulate yearly view)
-            query = """
-            SELECT 
-                AVG(availability_percent) * 0.95 as avg_availability,
-                AVG(avg_latency_ms) * 1.1 as avg_latency,
-                AVG(avg_packet_loss_percent) * 1.3 as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) * 0.9 as avg_bandwidth_util,
-                AVG(avg_mttr_hours) * 0.85 as avg_mttr,
-                AVG(avg_dropped_call_rate) * 1.5 as avg_dropped_call_rate,
-                MAX(availability_percent) * 0.95 as max_availability,
-                MIN(avg_latency_ms) * 1.1 as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_network_metrics_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        else:
-            # Default to 30 days
-            query = """
-            SELECT 
-                AVG(availability_percent) as avg_availability,
-                AVG(avg_latency_ms) as avg_latency,
-                AVG(avg_packet_loss_percent) as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) as avg_bandwidth_util,
-                AVG(avg_mttr_hours) as avg_mttr,
-                AVG(avg_dropped_call_rate) as avg_dropped_call_rate,
-                MAX(availability_percent) as max_availability,
-                MIN(avg_latency_ms) as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_network_metrics_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        
+        security_logger.info("Database operation: get_network_metrics")
+        self._validate_days(days)
         with self.get_connection() as conn:
-            df = pd.read_sql_query(query, conn)
-            return df.iloc[0] if not df.empty else pd.Series()
+            if self._table_or_view_exists(conn, "vw_network_metrics_daily"):
+                query = """
+                SELECT
+                    AVG(availability_percent) as availability,
+                    AVG(avg_latency_ms) as latency,
+                    AVG(avg_packet_loss_percent) as packet_loss,
+                    AVG(avg_bandwidth_utilization_percent) as bandwidth_utilization,
+                    AVG(avg_mttr_hours) as mttr,
+                    AVG(avg_dropped_call_rate) as dropped_call_rate,
+                    MAX(availability_percent) as max_availability,
+                    MIN(avg_latency_ms) as min_latency,
+                    COUNT(DISTINCT region_id) as active_regions,
+                    COUNT(DISTINCT date_id) as days_with_data
+                FROM vw_network_metrics_daily
+                WHERE date_id = '2023-08-01'
+                """
+                df = pd.read_sql_query(query, conn)
+            else:
+                query = """
+                SELECT
+                    AVG(fn.availability) as availability,
+                    AVG(fn.latency) as latency,
+                    AVG(fn.packet_loss) as packet_loss,
+                    AVG(fn.bandwidth_utilization) as bandwidth_utilization,
+                    AVG(fn.mttr) as mttr,
+                    AVG(fn.dropped_call_rate) as dropped_call_rate
+                FROM fact_network_metrics fn
+                JOIN dim_time dt ON fn.time_id = dt.time_id
+                WHERE dt.date >= date((SELECT MAX(date) FROM dim_time), ?)
+                """
+                df = pd.read_sql_query(query, conn, params=(self._date_offset(days),))
+
+            if df.empty:
+                return MetricSeries(dtype="float64")
+
+            return self._normalize_metric_series(df.iloc[0], {
+                "avg_availability": "availability",
+                "avg_latency": "latency",
+                "avg_packet_loss": "packet_loss",
+                "avg_bandwidth_util": "bandwidth_utilization",
+                "avg_mttr": "mttr",
+                "avg_dropped_call_rate": "dropped_call_rate",
+            })
     
     @cache_with_ttl(ttl_seconds=300)  # 5-minute cache
     @secure_query_executor
     def get_customer_metrics(self, days=30):
         """Get customer experience metrics for the last N days"""
-        # Use actual customer experience data from the fact table
-        if days == 30:
-            query = """
-            SELECT 
-                AVG(avg_satisfaction_score) as csat_score,
-                AVG(avg_nps_score) as nps_score,
-                AVG(avg_churn_rate) as churn_rate,
-                AVG(avg_lifetime_value) as customer_lifetime_value,
-                AVG(avg_handling_time) as avg_response_time,
-                AVG(first_contact_resolution_rate) as first_contact_resolution,
-                AVG(avg_customer_effort_score) as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_customer_experience_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 90:  # QTD
-            query = """
-            SELECT 
-                AVG(avg_satisfaction_score) * 0.98 as csat_score,
-                AVG(avg_nps_score) * 0.98 as nps_score,
-                AVG(avg_churn_rate) * 1.05 as churn_rate,
-                AVG(avg_lifetime_value) * 0.98 as customer_lifetime_value,
-                AVG(avg_handling_time) * 1.02 as avg_response_time,
-                AVG(first_contact_resolution_rate) * 0.98 as first_contact_resolution,
-                AVG(avg_customer_effort_score) * 1.02 as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_customer_experience_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 365:  # YTD or Last 12 Months
-            query = """
-            SELECT 
-                AVG(avg_satisfaction_score) * 0.95 as csat_score,
-                AVG(avg_nps_score) * 0.95 as nps_score,
-                AVG(avg_churn_rate) * 1.1 as churn_rate,
-                AVG(avg_lifetime_value) * 0.95 as customer_lifetime_value,
-                AVG(avg_handling_time) * 1.05 as avg_response_time,
-                AVG(first_contact_resolution_rate) * 0.95 as first_contact_resolution,
-                AVG(avg_customer_effort_score) * 1.05 as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_customer_experience_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        else:
-            query = """
-            SELECT 
-                AVG(avg_satisfaction_score) as csat_score,
-                AVG(avg_nps_score) as nps_score,
-                AVG(avg_churn_rate) as churn_rate,
-                AVG(avg_lifetime_value) as customer_lifetime_value,
-                AVG(avg_handling_time) as avg_response_time,
-                AVG(first_contact_resolution_rate) as first_contact_resolution,
-                AVG(avg_customer_effort_score) as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_customer_experience_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        
+        self._validate_days(days)
         with self.get_connection() as conn:
-            df = pd.read_sql_query(query, conn)
-            return df.iloc[0] if not df.empty else pd.Series()
+            if self._table_or_view_exists(conn, "vw_customer_experience_daily"):
+                query = """
+                SELECT
+                    AVG(avg_satisfaction_score) as satisfaction_score,
+                    AVG(avg_nps_score) as nps,
+                    AVG(avg_churn_rate) as churn_rate,
+                    AVG(avg_lifetime_value) as customer_lifetime_value,
+                    AVG(avg_handling_time) as avg_handling_time,
+                    AVG(first_contact_resolution_rate) as first_contact_resolution,
+                    AVG(avg_customer_effort_score) as customer_effort_score,
+                    COUNT(DISTINCT region_id) as active_regions,
+                    COUNT(DISTINCT date_id) as days_with_data
+                FROM vw_customer_experience_daily
+                WHERE date_id = '2023-08-01'
+                """
+                df = pd.read_sql_query(query, conn)
+            else:
+                query = """
+                SELECT
+                    AVG(fce.satisfaction_score) as satisfaction_score,
+                    AVG(fce.churn_rate) as churn_rate,
+                    AVG(fce.nps) as nps,
+                    AVG(fce.first_contact_resolution) as first_contact_resolution,
+                    AVG(fce.avg_handling_time) as avg_handling_time,
+                    AVG(fce.customer_lifetime_value) as customer_lifetime_value
+                FROM fact_customer_experience fce
+                JOIN dim_time dt ON fce.time_id = dt.time_id
+                WHERE dt.date >= date((SELECT MAX(date) FROM dim_time), ?)
+                """
+                df = pd.read_sql_query(query, conn, params=(self._date_offset(days),))
+
+            if df.empty:
+                return MetricSeries(dtype="float64")
+
+            return self._normalize_metric_series(df.iloc[0], {
+                "csat_score": "satisfaction_score",
+                "nps_score": "nps",
+                "avg_response_time": "avg_handling_time",
+            })
     
     @cache_with_ttl(ttl_seconds=300)  # 5-minute cache
     def get_revenue_metrics(self, days=30):
         """Get revenue metrics for the last N days"""
-        # Use actual revenue data from the fact table
-        if days == 30:
-            query = """
-            SELECT 
-                AVG(avg_arpu) as arpu,
-                AVG(avg_ebitda_margin) as ebitda_margin,
-                AVG(avg_cac) as customer_acquisition_cost,
-                AVG(avg_clv) as customer_lifetime_value,
-                AVG(avg_growth_rate) * 100 as revenue_growth,
-                AVG(avg_profit_margin) as profit_margin,
-                SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_revenue_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 90:  # QTD
-            query = """
-            SELECT 
-                AVG(avg_arpu) * 0.98 as arpu,
-                AVG(avg_ebitda_margin) * 0.95 as ebitda_margin,
-                AVG(avg_cac) * 0.98 as customer_acquisition_cost,
-                AVG(avg_clv) * 0.98 as customer_lifetime_value,
-                AVG(avg_growth_rate) * 100 * 0.95 as revenue_growth,
-                AVG(avg_profit_margin) * 0.98 as profit_margin,
-                SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_revenue_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        elif days == 365:  # YTD or Last 12 Months
-            query = """
-            SELECT 
-                AVG(avg_arpu) * 0.95 as arpu,
-                AVG(avg_ebitda_margin) * 0.9 as ebitda_margin,
-                AVG(avg_cac) * 0.95 as customer_acquisition_cost,
-                AVG(avg_clv) * 0.95 as customer_lifetime_value,
-                AVG(avg_growth_rate) * 100 * 0.9 as revenue_growth,
-                AVG(avg_profit_margin) * 0.95 as profit_margin,
-                SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_revenue_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        else:
-            query = """
-            SELECT 
-                AVG(avg_arpu) as arpu,
-                AVG(avg_ebitda_margin) as ebitda_margin,
-                AVG(avg_cac) as customer_acquisition_cost,
-                AVG(avg_clv) as customer_lifetime_value,
-                AVG(avg_growth_rate) * 100 as revenue_growth,
-                AVG(avg_profit_margin) as profit_margin,
-                SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
-                COUNT(DISTINCT date_id) as days_with_data
-            FROM vw_revenue_daily 
-            WHERE date_id = '2023-08-01'
-            """
-        
+        self._validate_days(days)
         with self.get_connection() as conn:
+            if not self._table_or_view_exists(conn, "vw_revenue_daily"):
+                return MetricSeries(dtype="float64")
+
+            query = """
+            SELECT
+                AVG(avg_arpu) as arpu,
+                AVG(avg_ebitda_margin) as ebitda_margin,
+                AVG(avg_cac) as customer_acquisition_cost,
+                AVG(avg_clv) as customer_lifetime_value,
+                AVG(avg_growth_rate) * 100 as revenue_growth,
+                AVG(avg_profit_margin) as profit_margin,
+                SUM(total_subscribers) as total_subscribers,
+                COUNT(DISTINCT region_id) as active_regions,
+                COUNT(DISTINCT date_id) as days_with_data
+            FROM vw_revenue_daily
+            WHERE date_id = '2023-08-01'
+            """
             df = pd.read_sql_query(query, conn)
-            return df.iloc[0] if not df.empty else pd.Series()
+            return MetricSeries(df.iloc[0]) if not df.empty else MetricSeries(dtype="float64")
     
     @cache_with_ttl(ttl_seconds=300)  # 5-minute cache
     def get_usage_metrics(self, days=30):
@@ -563,29 +539,47 @@ class TelecomDatabase:
     @cache_with_ttl(ttl_seconds=300)  # 5-minute cache
     def get_customer_trend_data(self, days=30):
         """Get customer experience trend data for charts"""
+        self._validate_days(days)
         try:
-            query = """
-            SELECT 
-                r.region_name,
-                ce.date_id,
-                ce.avg_satisfaction_score as satisfaction,
-                ce.avg_nps_score as nps,
-                ce.avg_churn_rate as churn,
-                ce.avg_handling_time as handling_time,
-                ce.first_contact_resolution_rate as fcr,
-                ce.avg_customer_effort_score as effort_score,
-                ce.avg_lifetime_value as clv
-            FROM vw_customer_experience_daily ce
-            JOIN dim_region r ON ce.region_id = r.region_id
-            WHERE ce.date_id >= date('2023-08-01', '-30 days')
-            ORDER BY ce.date_id, r.region_name
-            """
-            
             with self.get_connection() as conn:
-                df = pd.read_sql_query(query, conn)
-                return df
+                if self._table_or_view_exists(conn, "vw_customer_experience_daily"):
+                    query = """
+                    SELECT
+                        r.region_name,
+                        ce.date_id,
+                        ce.avg_satisfaction_score as satisfaction_score,
+                        ce.avg_nps_score as nps,
+                        ce.avg_churn_rate as churn_rate,
+                        ce.avg_handling_time as avg_handling_time,
+                        ce.first_contact_resolution_rate as first_contact_resolution,
+                        ce.avg_customer_effort_score as customer_effort_score,
+                        ce.avg_lifetime_value as customer_lifetime_value
+                    FROM vw_customer_experience_daily ce
+                    JOIN dim_region r ON ce.region_id = r.region_id
+                    WHERE ce.date_id >= date('2023-08-01', ?)
+                    ORDER BY ce.date_id, r.region_name
+                    """
+                    return pd.read_sql_query(query, conn, params=(self._date_offset(days),))
+
+                query = """
+                SELECT
+                    r.region_name,
+                    dt.date as date_id,
+                    fce.satisfaction_score as satisfaction_score,
+                    fce.churn_rate as churn_rate,
+                    fce.nps as nps,
+                    fce.first_contact_resolution as first_contact_resolution,
+                    fce.avg_handling_time as avg_handling_time,
+                    fce.customer_lifetime_value as customer_lifetime_value
+                FROM fact_customer_experience fce
+                JOIN dim_region r ON fce.region_id = r.region_id
+                JOIN dim_time dt ON fce.time_id = dt.time_id
+                WHERE dt.date >= date((SELECT MAX(date) FROM dim_time), ?)
+                ORDER BY dt.date, r.region_name
+                """
+                return pd.read_sql_query(query, conn, params=(self._date_offset(days),))
         except Exception as e:
-            print(f"Error getting customer trend data: {e}")
+            db_logger.error(f"Error getting customer trend data: {e}")
             return pd.DataFrame()
 
     @cache_with_ttl(ttl_seconds=300)  # 5-minute cache

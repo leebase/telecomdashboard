@@ -15,6 +15,18 @@ from config_manager import (
 )
 from src.exceptions.custom_exceptions import ConfigurationError
 
+
+@pytest.fixture
+def isolated_config_manager(tmp_path):
+    """Provide a config manager that cannot mutate the repo config."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+
+    manager = ConfigManager()
+    manager.config_dir = config_dir
+    return manager
+
+
 class TestDatabaseConfig:
     """Test DatabaseConfig model"""
     
@@ -287,9 +299,9 @@ class TestConfigManager:
             manager.save_config(config)
             mock_logger.error.assert_called()
     
-    def test_get_config_lazy_loading(self):
+    def test_get_config_lazy_loading(self, isolated_config_manager):
         """Test lazy loading of configuration"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         assert manager._config is None
         
         # First access should load config
@@ -301,9 +313,9 @@ class TestConfigManager:
         config2 = manager.config
         assert config1 is config2
     
-    def test_get_specific_configs(self):
+    def test_get_specific_configs(self, isolated_config_manager):
         """Test getting specific configuration sections"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         
         db_config = manager.get_database_config()
         assert isinstance(db_config, DatabaseConfig)
@@ -320,9 +332,9 @@ class TestConfigManager:
         ai_config = manager.get_ai_config()
         assert isinstance(ai_config, AIConfig)
     
-    def test_update_config(self):
+    def test_update_config(self, isolated_config_manager):
         """Test updating configuration"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         
         # Update database config
         manager.update_config(
@@ -335,25 +347,25 @@ class TestConfigManager:
         assert config.database.cache_size == 128
         assert config.ui.page_title == 'Updated Dashboard'
     
-    def test_update_config_invalid_section(self):
+    def test_update_config_invalid_section(self, isolated_config_manager):
         """Test updating with invalid configuration section"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         
         with patch('config_manager.logger') as mock_logger:
             manager.update_config(invalid_section={'key': 'value'})
             mock_logger.warning.assert_called_with("Unknown config section: invalid_section")
     
-    def test_update_config_invalid_key(self):
+    def test_update_config_invalid_key(self, isolated_config_manager):
         """Test updating with invalid configuration key"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         
         with patch('config_manager.logger') as mock_logger:
             manager.update_config(database={'invalid_key': 'value'})
             mock_logger.warning.assert_called_with("Unknown config key: database.invalid_key")
     
-    def test_reset_to_defaults(self):
+    def test_reset_to_defaults(self, isolated_config_manager):
         """Test resetting configuration to defaults"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         
         # Modify config
         manager.update_config(database={'path': 'custom.sqlite'})
@@ -401,9 +413,9 @@ class TestConfigValidation:
         assert hasattr(config.ui, 'page_title')
         assert hasattr(config.security, 'enable_rate_limiting')
     
-    def test_config_serialization(self):
+    def test_config_serialization(self, isolated_config_manager):
         """Test configuration serialization to dict"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         config = AppConfig()
         
         config_dict = manager._config_to_dict(config)
@@ -418,9 +430,9 @@ class TestConfigValidation:
         assert 'path' in config_dict['database']
         assert 'page_title' in config_dict['ui']
     
-    def test_config_deserialization(self):
+    def test_config_deserialization(self, isolated_config_manager):
         """Test configuration deserialization from dict"""
-        manager = ConfigManager()
+        manager = isolated_config_manager
         config_data = {
             'database': {'path': 'test.sqlite', 'cache_size': 64},
             'ui': {'page_title': 'Test Dashboard'},
@@ -433,5 +445,4 @@ class TestConfigValidation:
         assert config.database.cache_size == 64
         assert config.ui.page_title == 'Test Dashboard'
         assert config.security.max_requests_per_minute == 120
-
 

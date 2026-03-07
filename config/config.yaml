@@ -1,0 +1,51 @@
+ai:
+  api_timeout: 30
+  enable_insights: true
+  max_tokens: 2000
+  model: google/gemini-2.5-flash
+  temperature: 0.1
+database:
+  cache_size: 128
+  connection_timeout: 30000
+  enable_foreign_keys: true
+  path: data/telecom_db.sqlite
+  trend_cache_size: 16
+features:
+  ai_insights: true
+  ai_insights_beta: false
+  benchmark_management: true
+  cache_ttl: true
+  circuit_breaker: true
+  connection_pooling: true
+  debug_mode: false
+  health_checks_detailed: true
+  performance_monitoring: true
+  pii_scrubbing: true
+  print_mode: true
+  rate_limiting: true
+  security_headers: true
+  snowflake_query_tagging: true
+  sql_injection_protection: true
+  structured_logging: false
+  test_mode: false
+  theme_switching: true
+performance:
+  cache_ttl_seconds: 300
+  concurrent_requests: 5
+  enable_caching: true
+  enable_lazy_loading: true
+  max_dataframe_rows: 10000
+security:
+  enable_input_validation: true
+  enable_output_sanitization: true
+  enable_rate_limiting: true
+  enable_security_logging: true
+  log_file: security.log
+  max_requests_per_minute: 60
+ui:
+  default_theme: verizon
+  layout: wide
+  page_icon: "\U0001F4E1"
+  page_title: Telecom KPI Dashboard
+  show_debug_info: false
+  sidebar_state: expanded

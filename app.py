@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import altair as alt
+from pathlib import Path
 # Explicit imports for better maintainability and IDE support
 from kpi_components import (
     render_metric_card,
@@ -152,7 +153,7 @@ def render_network_performance(network_data):
         st.header("📡 Network Performance & Reliability", divider=False)
     with col2:
         st.markdown('<div style="height: 3.3rem; display: flex; align-items: flex-end; justify-content: flex-end;">', unsafe_allow_html=True)
-        if st.button("🤖 AI Insights", key="ai_insights_btn_network", type="secondary", use_container_width=True):
+        if st.button("🤖 AI Insights", key="ai_insights_btn_network", type="secondary", width="stretch"):
             # When button is clicked, both show the panel and trigger analysis
             st.session_state.show_ai_insights_network = True
             st.session_state.trigger_analysis_network = True
@@ -211,7 +212,7 @@ def render_customer_experience(customer_data, db):
         st.header("😊 Customer Experience & Retention", divider=False)
     with col2:
         st.markdown('<div style="height: 3.3rem; display: flex; align-items: flex-end; justify-content: flex-end;">', unsafe_allow_html=True)
-        if st.button("🤖 AI Insights", key="ai_insights_btn_customer", type="secondary", use_container_width=True):
+        if st.button("🤖 AI Insights", key="ai_insights_btn_customer", type="secondary", width="stretch"):
             st.session_state.show_ai_insights_customer = True
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -248,9 +249,9 @@ def render_customer_experience(customer_data, db):
     with col1:
             if not customer_trend_data.empty:
                 # Create satisfaction by region chart (aggregated by region)
-                satisfaction_data = customer_trend_data.groupby('region_name')['satisfaction'].mean().reset_index()
+                satisfaction_data = customer_trend_data.groupby('region_name')['satisfaction_score'].mean().reset_index()
                 satisfaction_data['category'] = satisfaction_data['region_name']
-                satisfaction_data['value'] = satisfaction_data['satisfaction']
+                satisfaction_data['value'] = satisfaction_data['satisfaction_score']
                 render_bar_chart(satisfaction_data, "Customer Satisfaction by Region", "Score")
                 
                 # Create NPS by region chart (aggregated by region)
@@ -264,15 +265,15 @@ def render_customer_experience(customer_data, db):
     with col2:
             if not customer_trend_data.empty:
                 # Create churn rate by region chart (aggregated by region)
-                churn_data = customer_trend_data.groupby('region_name')['churn'].mean().reset_index()
+                churn_data = customer_trend_data.groupby('region_name')['churn_rate'].mean().reset_index()
                 churn_data['category'] = churn_data['region_name']
-                churn_data['value'] = churn_data['churn']
+                churn_data['value'] = churn_data['churn_rate']
                 render_bar_chart(churn_data, "Churn Rate by Region", "%")
                 
                 # Create support duration by region chart (aggregated by region)
-                duration_data = customer_trend_data.groupby('region_name')['handling_time'].mean().reset_index()
+                duration_data = customer_trend_data.groupby('region_name')['avg_handling_time'].mean().reset_index()
                 duration_data['category'] = duration_data['region_name']
-                duration_data['value'] = duration_data['handling_time']
+                duration_data['value'] = duration_data['avg_handling_time']
                 render_bar_chart(duration_data, "Support Call Duration by Region", "Minutes")
             else:
                 st.warning("No customer trend data available")
@@ -298,7 +299,7 @@ def render_revenue_monetization(revenue_data, db):
         st.header("💰 Revenue & Monetization", divider=False)
     with col2:
         st.markdown('<div style="height: 3.3rem; display: flex; align-items: flex-end; justify-content: flex-end;">', unsafe_allow_html=True)
-        if st.button("🤖 AI Insights", key="ai_insights_btn_revenue", type="secondary", use_container_width=True):
+        if st.button("🤖 AI Insights", key="ai_insights_btn_revenue", type="secondary", width="stretch"):
             st.session_state.show_ai_insights_revenue = True
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -385,7 +386,7 @@ def render_usage_adoption(usage_data, db):
         st.header("📶 Usage & Service Adoption", divider=False)
     with col2:
         st.markdown('<div style="height: 3.3rem; display: flex; align-items: flex-end; justify-content: flex-end;">', unsafe_allow_html=True)
-        if st.button("🤖 AI Insights", key="ai_insights_btn_usage", type="secondary", use_container_width=True):
+        if st.button("🤖 AI Insights", key="ai_insights_btn_usage", type="secondary", width="stretch"):
             st.session_state.show_ai_insights_usage = True
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -472,7 +473,7 @@ def render_operational_efficiency(operations_data, db):
         st.header("🛠️ Operational Efficiency", divider=False)
     with col2:
         st.markdown('<div style="height: 3.3rem; display: flex; align-items: flex-end; justify-content: flex-end;">', unsafe_allow_html=True)
-        if st.button("🤖 AI Insights", key="ai_insights_btn_operations", type="secondary", use_container_width=True):
+        if st.button("🤖 AI Insights", key="ai_insights_btn_operations", type="secondary", width="stretch"):
             st.session_state.show_ai_insights_operations = True
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -554,9 +555,22 @@ def render_operational_efficiency(operations_data, db):
 def main():
     # Load configuration
     config = get_config()
-    
+
+    db_path = Path(config.database.path)
+    fallback_db_path = Path("data/telecom_db.sqlite")
+    if not db_path.exists() and fallback_db_path.exists():
+        logger.warning(
+            "Configured database path %s is missing; falling back to %s for local dashboard runtime",
+            db_path,
+            fallback_db_path,
+        )
+        st.sidebar.warning(
+            f"Configured database `{db_path}` was not found. Using `{fallback_db_path}` instead."
+        )
+        db_path = fallback_db_path
+
     # Initialize database connection with config
-    db = TelecomDatabase(config.database.path)
+    db = TelecomDatabase(str(db_path))
     
     # Print mode disabled for now
     print_mode = False

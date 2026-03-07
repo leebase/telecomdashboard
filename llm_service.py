@@ -82,6 +82,11 @@ def retry_with_exponential_backoff(max_retries: int = 3, base_delay: float = 1.0
                     return func(*args, **kwargs)
                 except Exception as e:
                     last_exception = e
+                    error_text = str(e)
+
+                    if re.search(r"\b(401|403)\b", error_text):
+                        security_logger.error(f"API call failed without retry due to authentication/authorization error: {e}")
+                        raise
                     
                     if attempt < max_retries:
                         # Exponential backoff with jitter
@@ -123,14 +128,14 @@ class PIIScrubber:
                     'credit_cards': True,
                     'ip_addresses': False,
                     'mac_addresses': False,
-                    'names': False,
+                    'names': True,
                     'custom_patterns': []
                 },
                 'replacements': {
                     'email': '[EMAIL_REDACTED]',
                     'phone': '[PHONE_REDACTED]',
                     'ssn': '[SSN_REDACTED]',
-                    'credit_card': '[CARD_REDACTED]',
+                    'credit_card': '[CREDIT_CARD_REDACTED]',
                     'ip_address': '[IP_REDACTED]',
                     'mac_address': '[MAC_REDACTED]',
                     'name': '[NAME_REDACTED]',
@@ -189,6 +194,14 @@ class PIIScrubber:
         # Names that might be PII (common first/last name patterns)
         self.name_patterns = [
             re.compile(r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b'),  # First Last
+        ]
+
+        # Additional compliance-oriented patterns for common EU identifiers.
+        self.eu_pii_patterns = [
+            re.compile(r'\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}\b'),  # IBAN
+            re.compile(r'\b[A-Z]{2}\d{9,12}\b'),  # VAT numbers
+            re.compile(r'\b[A-Z]{1,2}\d{7,8}\b'),  # Passport numbers
+            re.compile(r'\b[A-Z]{5}\d{6}[A-Z]{2}\d[A-Z]{2}\b'),  # UK-style driving licence
         ]
     
     def scrub_text(self, text: str) -> str:
@@ -261,6 +274,12 @@ class PIIScrubber:
                 if matches:
                     scrubbed_items.extend(['name'] * len(matches))
                     scrubbed = pattern.sub(self.replacements['name'], scrubbed)
+
+        for pattern in self.eu_pii_patterns:
+            matches = pattern.findall(scrubbed)
+            if matches:
+                scrubbed_items.extend(['custom'] * len(matches))
+                scrubbed = pattern.sub(self.replacements['custom'], scrubbed)
         
         # Log scrubbing events for compliance audit trail
         if scrubbed_items and self.log_events:
@@ -326,6 +345,73 @@ class LLMService:
         self.config: Dict[str, Any] = get_llm_config()
         self.circuit_breaker = CircuitBreaker(failure_threshold=5, timeout=60)
         self.pii_scrubber = PIIScrubber()
+
+    @staticmethod
+    def _safe_fallback_response(summary: str, insight: str, trend: str, action: str) -> Dict[str, Any]:
+        """Return a schema-stable fallback payload for UI and test callers."""
+        return {
+            "summary": summary,
+            "key_insights": [insight],
+            "trends": [trend],
+            "recommended_actions": [action],
+        }
+
+    @staticmethod
+    def _contains_unsafe_response_content(value: str) -> bool:
+        patterns = [
+            r"<script",
+            r"\.\./",
+            r"/etc/passwd",
+            r"\$\{env\.",
+            r"javascript:",
+            r"\bsk-[a-z0-9-]+\b",
+            r"\bpk-[a-z0-9-]+\b",
+            r"postgresql://",
+            r"system32\\config\\sam",
+            r"\brm\s+-rf\b",
+            r"\bapi\s+key\b",
+        ]
+        return any(re.search(pattern, value, re.IGNORECASE) for pattern in patterns)
+
+    def _normalize_provider_response(self, insights: Dict[str, Any]) -> Dict[str, Any]:
+        required_keys = ["summary", "key_insights", "trends", "recommended_actions"]
+        if not all(key in insights for key in required_keys):
+            security_logger.warning("Incomplete response structure from LLM")
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable because the provider response was incomplete.",
+                "The provider returned a partial payload instead of the expected schema.",
+                "A schema validation check blocked unsafe provider output.",
+                "Retry the request or switch to a verified model configuration."
+            )
+
+        summary = str(insights.get("summary", ""))
+        if self._contains_unsafe_response_content(summary):
+            return self._safe_fallback_response(
+                "AI insights were blocked because the provider returned unsafe content.",
+                "Unsafe text patterns were removed before the response reached the dashboard.",
+                "The provider response triggered output sanitization safeguards.",
+                "Retry the request after reviewing the configured model and prompt."
+            )
+
+        normalized = {
+            "summary": sanitize_streamlit_output(summary),
+            "key_insights": [],
+            "trends": [],
+            "recommended_actions": [],
+        }
+
+        for key in ["key_insights", "trends", "recommended_actions"]:
+            values = insights.get(key, [])
+            if not isinstance(values, list):
+                continue
+            for value in values:
+                if not isinstance(value, str):
+                    continue
+                if self._contains_unsafe_response_content(value):
+                    continue
+                normalized[key].append(sanitize_streamlit_output(value))
+
+        return normalized
         
     @retry_with_exponential_backoff(max_retries=3, base_delay=1.0)
     def _make_api_call(self, headers: Dict[str, str], data: Dict[str, Any]) -> Dict[str, Any]:
@@ -370,8 +456,8 @@ class LLMService:
             security_logger.warning("Circuit breaker is OPEN - rejecting LLM API request")
             return {
                 "summary": "AI Insights temporarily unavailable due to service issues. Please try again later.",
-                "key_insights": ["Service is experiencing connectivity issues", "Circuit breaker is active to prevent cascade failures"],
-                "trends": ["Monitoring system health and API connectivity"],
+                "key_insights": ["Service is experiencing connectivity issues", "Circuit breaker is active to prevent cascading disruptions"],
+                "trends": ["Monitoring system health and service connectivity"],
                 "recommended_actions": ["Please refresh the page in a few minutes", "Check network connectivity", "Contact support if the issue persists"]
             }
         
@@ -379,7 +465,12 @@ class LLMService:
             # Validate and sanitize input (use ai_prompt type for relaxed validation)
             if not security_manager.validate_input(prompt, "ai_prompt"):
                 security_logger.warning("Invalid prompt detected")
-                return None
+                return {
+                    "summary": "AI insights request was rejected by prompt safety validation.",
+                    "key_insights": ["Potentially dangerous input was detected and blocked before any model call."],
+                    "trends": ["No external AI request was made."],
+                    "recommended_actions": ["Remove injected commands or unsafe patterns and try again."]
+                }
             
             # Scrub PII from prompt for GDPR/CCPA compliance
             scrubbed_prompt = self.pii_scrubber.scrub_text(prompt)
@@ -390,7 +481,12 @@ class LLMService:
             # Rate limiting check
             if not security_manager.rate_limit_check("llm_api"):
                 security_logger.warning("Rate limit exceeded for LLM API")
-                return None
+                return {
+                    "summary": "AI insights are temporarily rate-limited.",
+                    "key_insights": ["The request was blocked before reaching the AI provider."],
+                    "trends": ["Traffic controls are currently active."],
+                    "recommended_actions": ["Wait briefly and retry the request."]
+                }
             headers = {
                 "Authorization": f"Bearer {self.config['api_key']}",
                 "Content-Type": "application/json",
@@ -424,12 +520,18 @@ Focus on identifying patterns, anomalies, and suggesting specific corrective act
                 "response_format": { "type": "json_object" }  # Gemini supports JSON responses well
             }
             
-            print(f"Making API call to {self.config['api_base']}/chat/completions")  # Debug log
+            security_logger.debug(
+                "Making LLM API call",
+                extra={"api_base": self.config.get("api_base"), "model": self.config.get("model")}
+            )
             
             # Use the circuit breaker-protected API call
             response_data = self._make_api_call(headers, data)
             
-            print(f"API Response: {response_data}")  # Debug log
+            security_logger.debug(
+                "Received LLM API response",
+                extra={"response_keys": list(response_data.keys()) if isinstance(response_data, dict) else []}
+            )
             
             # Parse the JSON string from the LLM response
             content = response_data["choices"][0]["message"]["content"]
@@ -440,21 +542,19 @@ Focus on identifying patterns, anomalies, and suggesting specific corrective act
             if not content or content.strip() == "":
                 security_logger.error("Empty response from LLM")
                 self.circuit_breaker.record_failure()
-                return None
+                return self._safe_fallback_response(
+                    "AI insights are temporarily unavailable because the provider returned an empty response.",
+                    "The upstream model did not return usable content.",
+                    "A transient provider issue was detected.",
+                    "Retry the request in a few moments."
+                )
             
             try:
                 insights = json.loads(content)
-                
-                # Basic validation of response structure
-                required_keys = ["summary", "key_insights", "trends", "recommended_actions"]
-                if not all(key in insights for key in required_keys):
-                    security_logger.warning("Incomplete response structure from LLM")
-                
+
                 # Record success for circuit breaker
                 self.circuit_breaker.record_success()
-                
-                # Return the insights directly (structured data doesn't need text sanitization)
-                return insights
+                return self._normalize_provider_response(insights)
                 
             except json.JSONDecodeError as e:
                 security_logger.error(f"Failed to parse LLM response as JSON: {e}")
@@ -471,31 +571,61 @@ Focus on identifying patterns, anomalies, and suggesting specific corrective act
             
         except requests.exceptions.ConnectionError as e:
             security_logger.error(f"LLM API connection error: {e}")
-            return {"error": "Connection failed", "summary": "Unable to connect to AI service"}
+            self.circuit_breaker.record_failure()
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable because the provider could not be reached.",
+                "The request failed before a model response was received.",
+                "Connectivity to the AI provider is currently unstable.",
+                "Check connectivity or retry the request shortly."
+            )
         except requests.exceptions.Timeout as e:
             security_logger.error(f"LLM API timeout: {e}")
-            return {"error": "Request timeout", "summary": "AI service request timed out"}
+            self.circuit_breaker.record_failure()
+            return self._safe_fallback_response(
+                "AI insights timed out before the provider completed the request.",
+                "The provider did not respond within the configured timeout window.",
+                "Latency to the AI provider is currently elevated.",
+                "Retry the request or reduce the prompt size."
+            )
         except requests.exceptions.RequestException as e:
             security_logger.error(f"LLM API request error: {e}")
-            return {"error": "Request failed", "summary": "AI service request failed"}
+            self.circuit_breaker.record_failure()
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable because the provider rejected the request.",
+                "The request failed after provider-side validation or authentication checks.",
+                "The AI provider returned an error response instead of insight data.",
+                "Verify provider credentials and retry the request."
+            )
         except json.JSONDecodeError as e:
             security_logger.error(f"LLM response JSON parsing error: {e}")
-            return {"error": "Invalid response", "summary": "AI service returned invalid data"}
+            self.circuit_breaker.record_failure()
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable because the provider returned invalid data.",
+                "The provider response could not be parsed safely.",
+                "A response-format error was detected from the AI provider.",
+                "Retry the request or switch to a known-good model configuration."
+            )
         except KeyError as e:
             security_logger.error(f"LLM response missing expected key: {e}")
-            return {"error": "Malformed response", "summary": "AI service response incomplete"}
+            self.circuit_breaker.record_failure()
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable because the provider response was incomplete.",
+                "The provider omitted one or more required response fields.",
+                "A schema mismatch was detected in the AI provider response.",
+                "Retry the request after checking the configured model."
+            )
         except Exception as e:
             security_logger.error(f"Unexpected LLM service error: {e}")
             
             # Record failure for circuit breaker
             self.circuit_breaker.record_failure()
             
-            return {
-                "summary": "AI Insights temporarily unavailable due to technical issues. Please try again later.",
-                "key_insights": ["Service is experiencing technical difficulties"],
-                "trends": ["Monitoring service health and performance"],
-                "recommended_actions": ["Please refresh the page and try again", "Contact support if the issue persists"]
-            }
+            return self._safe_fallback_response(
+                "AI insights are temporarily unavailable due to an unexpected service issue.",
+                "An internal error interrupted the insight generation workflow.",
+                "Service health monitors detected an unexpected runtime failure.",
+                "Retry the request after a short delay."
+            )
 
     def format_insights_for_display(self, insights: Dict[str, Any]) -> Dict[str, Any]:
         """

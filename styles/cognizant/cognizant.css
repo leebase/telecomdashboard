@@ -408,11 +408,6 @@
     border: 0;
 }
 
-/* Hide Streamlit default elements */
-.stApp > div:first-child {
-    display: none;
-}
-
 /* Custom metric card styling */
 .metric-card {
     background: linear-gradient(180deg, rgba(19, 34, 61, 0.95), rgba(10, 22, 44, 0.95));

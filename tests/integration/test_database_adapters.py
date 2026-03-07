@@ -231,57 +231,52 @@ class TestSnowflakeAdapter:
         # Mock connection and cursor
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        mock_cursor.fetch_pandas_all.return_value = pd.DataFrame({'result': [1]})
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
-        
-        # Mock pandas read_sql_query
-        with patch('pandas.read_sql_query') as mock_read_sql:
-            mock_read_sql.return_value = pd.DataFrame({'result': [1]})
-            
-            adapter = SnowflakeAdapter(mock_credentials, use_pooling=False)
-            result = adapter.execute_query(
-                "SELECT COUNT(*) FROM fact_network_metrics",
-                user_context="test_user"
-            )
-            
-            assert isinstance(result, pd.DataFrame)
-            
-            # Verify query tag was set
-            calls = mock_cursor.execute.call_args_list
-            assert len(calls) >= 1
-            
-            # Check that query tag contains expected elements
-            tag_call = calls[0][0][0]  # First call, first argument
-            assert "ALTER SESSION SET QUERY_TAG" in tag_call
-            assert "telecom_dashboard" in tag_call
-            assert "test_user" in tag_call
+
+        adapter = SnowflakeAdapter(mock_credentials, use_pooling=False)
+        result = adapter.execute_query(
+            "SELECT COUNT(*) FROM fact_network_metrics",
+            user_context="test_user"
+        )
+
+        assert isinstance(result, pd.DataFrame)
+
+        # Verify query tag was set
+        calls = mock_cursor.execute.call_args_list
+        assert len(calls) >= 1
+
+        # Check that query tag contains expected elements
+        tag_call = calls[0][0][0]  # First call, first argument
+        assert "ALTER SESSION SET QUERY_TAG" in tag_call
+        assert "telecom_dashboard" in tag_call
+        assert "test_user" in tag_call
     
     @patch('snowflake.connector.connect')
     def test_snowflake_compliance_tagging(self, mock_connect, mock_credentials):
         """Test Snowflake compliance and audit tagging"""
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
+        mock_cursor.fetch_pandas_all.return_value = pd.DataFrame({'test': [1]})
         mock_conn.cursor.return_value = mock_cursor
         mock_connect.return_value = mock_conn
-        
-        with patch('pandas.read_sql_query') as mock_read_sql:
-            mock_read_sql.return_value = pd.DataFrame({'test': [1]})
-            
-            adapter = SnowflakeAdapter(mock_credentials, use_pooling=False)
-            
-            # Generate query tag
-            tag = adapter._generate_query_tag("audit_user")
-            
-            # Should contain compliance markers
-            assert "soc2_audit" in tag
-            assert "gdpr_compliant" in tag
-            assert "audit_user" in tag
-            assert "telecom_dashboard" in tag
-            
-            # Should contain timestamp
-            import re
-            timestamp_pattern = r'\d{8}_\d{6}'
-            assert re.search(timestamp_pattern, tag), f"No timestamp found in tag: {tag}"
+
+        adapter = SnowflakeAdapter(mock_credentials, use_pooling=False)
+
+        # Generate query tag
+        tag = adapter._generate_query_tag("audit_user")
+
+        # Should contain compliance markers
+        assert "soc2_audit" in tag
+        assert "gdpr_compliant" in tag
+        assert "audit_user" in tag
+        assert "telecom_dashboard" in tag
+
+        # Should contain timestamp
+        import re
+        timestamp_pattern = r'\d{8}_\d{6}'
+        assert re.search(timestamp_pattern, tag), f"No timestamp found in tag: {tag}"
 
 class TestDatabaseIntegration:
     """Integration tests for database operations"""
@@ -305,7 +300,7 @@ class TestDatabaseIntegration:
         metrics = db.get_network_metrics(days=7)
         
         assert metrics is not None
-        assert isinstance(metrics, dict)
+        assert isinstance(metrics, (dict, pd.Series))
         
         # Should have expected metric keys
         expected_keys = ['availability', 'latency', 'packet_loss', 'bandwidth_utilization']
@@ -389,7 +384,7 @@ class TestDataValidation:
             try:
                 result = func(**kwargs)
                 if result is not None:
-                    assert isinstance(result, dict), f"Expected dict from {func.__name__}"
+                    assert isinstance(result, (dict, pd.Series)), f"Expected mapping-like result from {func.__name__}"
                     
                     # Validate numeric values
                     for key, value in result.items():

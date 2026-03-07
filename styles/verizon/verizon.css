@@ -448,11 +448,6 @@
     border: 0;
 }
 
-/* Hide Streamlit default elements */
-.stApp > div:first-child {
-    display: none;
-}
-
 /* Custom metric card styling */
 .metric-card {
     background: var(--vz-card);

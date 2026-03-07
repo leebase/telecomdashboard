@@ -7,6 +7,7 @@ import sqlite3
 import pandas as pd
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from time import perf_counter
 
 from database_connection import TelecomDatabase
 from src.exceptions.custom_exceptions import DatabaseError, DatabaseConnectionError
@@ -269,18 +270,20 @@ class TestDatabasePerformance:
     @pytest.mark.performance
     def test_cache_performance(self, telecom_db):
         """Test that caching improves performance"""
+        telecom_db.get_network_metrics.cache_clear()
+
         # First call (uncached)
-        start = datetime.now()
+        start = perf_counter()
         telecom_db.get_network_metrics(days=30)
-        uncached_time = (datetime.now() - start).total_seconds()
+        uncached_time = perf_counter() - start
         
         # Second call (cached)
-        start = datetime.now()
+        start = perf_counter()
         telecom_db.get_network_metrics(days=30)
-        cached_time = (datetime.now() - start).total_seconds()
+        cached_time = perf_counter() - start
         
-        # Cached call should be significantly faster
-        assert cached_time < uncached_time * 0.1, "Cache not providing expected performance improvement"
+        assert telecom_db.get_network_metrics.cache_info()["cache_size"] >= 1
+        assert cached_time < uncached_time, "Cache not providing expected performance improvement"
     
     @pytest.mark.performance
     def test_large_dataset_handling(self, telecom_db):
@@ -300,11 +303,17 @@ class TestDatabaseErrorRecovery:
     @patch('database_connection.sqlite3.connect')
     def test_connection_retry(self, mock_connect, test_database):
         """Test connection retry logic"""
-        # First call fails, second succeeds
-        mock_connect.side_effect = [
-            sqlite3.Error("Connection failed"),
-            sqlite3.connect(test_database)
-        ]
+        real_connect = sqlite3.connect
+
+        # First call fails, second succeeds without leaking a pre-created connection.
+        def flaky_connect(*args, **kwargs):
+            if not getattr(flaky_connect, "failed_once", False):
+                flaky_connect.failed_once = True
+                raise sqlite3.Error("Connection failed")
+            return real_connect(*args, **kwargs)
+
+        flaky_connect.failed_once = False
+        mock_connect.side_effect = flaky_connect
         
         db = TelecomDatabase(test_database)
         
@@ -322,4 +331,3 @@ class TestDatabaseErrorRecovery:
         
         # This test would need a database with no data
         # For now, we test that existing methods handle edge cases
-

@@ -14,7 +14,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from config_manager import get_config, FeatureConfig
+from config_manager import ConfigManager, get_config, FeatureConfig
 
 class TestFeatureFlags:
     """Test feature flag functionality"""
@@ -68,16 +68,12 @@ class TestFeatureFlags:
         ]
         
         for scenario in override_scenarios:
-            with patch.dict(os.environ, scenario, clear=True):
-                try:
-                    config = get_config()
-                    if hasattr(config, 'features'):
-                        # The override might not be working yet due to configuration loading order
-                        # This test validates the expected behavior
-                        pass
-                except Exception:
-                    # Configuration loading might fail in test environment
-                    pass
+            expected = scenario['expected']
+            env_vars = {'FEATURE_DEBUG_MODE': scenario['FEATURE_DEBUG_MODE']}
+
+            with patch.dict(os.environ, env_vars, clear=True):
+                config = ConfigManager().load_config()
+                assert config.features.debug_mode is expected
     
     def test_feature_flag_categories(self):
         """Test that all feature flag categories are properly defined"""
