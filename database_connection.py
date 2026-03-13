@@ -158,15 +158,15 @@ class TelecomDatabase:
             # Last 30 days - use all data
             query = """
             SELECT 
-                AVG(availability_percent) as avg_availability,
-                AVG(avg_latency_ms) as avg_latency,
-                AVG(avg_packet_loss_percent) as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) as avg_bandwidth_util,
-                AVG(avg_mttr_hours) as avg_mttr,
-                AVG(avg_dropped_call_rate) as avg_dropped_call_rate,
-                MAX(availability_percent) as max_availability,
-                MIN(avg_latency_ms) as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(availability_pct) as avg_availability,
+                AVG(latency_ms) as avg_latency,
+                AVG(packet_loss_pct) as avg_packet_loss,
+                AVG(bandwidth_util_pct) as avg_bandwidth_util,
+                AVG(mttr_hours) as avg_mttr,
+                AVG(dropped_call_pct) as avg_dropped_call_rate,
+                MAX(availability_pct) as max_availability,
+                MIN(latency_ms) as min_latency,
+                COUNT(DISTINCT region_name) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_network_metrics_daily 
             WHERE date_id = '2023-08-01'
@@ -175,15 +175,15 @@ class TelecomDatabase:
             # Quarter - use 75% of data (simulate quarterly view)
             query = """
             SELECT 
-                AVG(availability_percent) * 0.98 as avg_availability,
-                AVG(avg_latency_ms) * 1.05 as avg_latency,
-                AVG(avg_packet_loss_percent) * 1.1 as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) * 0.95 as avg_bandwidth_util,
-                AVG(avg_mttr_hours) * 0.9 as avg_mttr,
-                AVG(avg_dropped_call_rate) * 1.2 as avg_dropped_call_rate,
-                MAX(availability_percent) * 0.98 as max_availability,
-                MIN(avg_latency_ms) * 1.05 as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(availability_pct) * 0.98 as avg_availability,
+                AVG(latency_ms) * 1.05 as avg_latency,
+                AVG(packet_loss_pct) * 1.1 as avg_packet_loss,
+                AVG(bandwidth_util_pct) * 0.95 as avg_bandwidth_util,
+                AVG(mttr_hours) * 0.9 as avg_mttr,
+                AVG(dropped_call_pct) * 1.2 as avg_dropped_call_rate,
+                MAX(availability_pct) * 0.98 as max_availability,
+                MIN(latency_ms) * 1.05 as min_latency,
+                COUNT(DISTINCT region_name) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_network_metrics_daily 
             WHERE date_id = '2023-08-01'
@@ -192,15 +192,15 @@ class TelecomDatabase:
             # Year - use 90% of data (simulate yearly view)
             query = """
             SELECT 
-                AVG(availability_percent) * 0.95 as avg_availability,
-                AVG(avg_latency_ms) * 1.1 as avg_latency,
-                AVG(avg_packet_loss_percent) * 1.3 as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) * 0.9 as avg_bandwidth_util,
-                AVG(avg_mttr_hours) * 0.85 as avg_mttr,
-                AVG(avg_dropped_call_rate) * 1.5 as avg_dropped_call_rate,
-                MAX(availability_percent) * 0.95 as max_availability,
-                MIN(avg_latency_ms) * 1.1 as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(availability_pct) * 0.95 as avg_availability,
+                AVG(latency_ms) * 1.1 as avg_latency,
+                AVG(packet_loss_pct) * 1.3 as avg_packet_loss,
+                AVG(bandwidth_util_pct) * 0.9 as avg_bandwidth_util,
+                AVG(mttr_hours) * 0.85 as avg_mttr,
+                AVG(dropped_call_pct) * 1.5 as avg_dropped_call_rate,
+                MAX(availability_pct) * 0.95 as max_availability,
+                MIN(latency_ms) * 1.1 as min_latency,
+                COUNT(DISTINCT region_name) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_network_metrics_daily 
             WHERE date_id = '2023-08-01'
@@ -209,15 +209,15 @@ class TelecomDatabase:
             # Default to 30 days
             query = """
             SELECT 
-                AVG(availability_percent) as avg_availability,
-                AVG(avg_latency_ms) as avg_latency,
-                AVG(avg_packet_loss_percent) as avg_packet_loss,
-                AVG(avg_bandwidth_utilization_percent) as avg_bandwidth_util,
-                AVG(avg_mttr_hours) as avg_mttr,
-                AVG(avg_dropped_call_rate) as avg_dropped_call_rate,
-                MAX(availability_percent) as max_availability,
-                MIN(avg_latency_ms) as min_latency,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(availability_pct) as avg_availability,
+                AVG(latency_ms) as avg_latency,
+                AVG(packet_loss_pct) as avg_packet_loss,
+                AVG(bandwidth_util_pct) as avg_bandwidth_util,
+                AVG(mttr_hours) as avg_mttr,
+                AVG(dropped_call_pct) as avg_dropped_call_rate,
+                MAX(availability_pct) as max_availability,
+                MIN(latency_ms) as min_latency,
+                COUNT(DISTINCT region_name) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_network_metrics_daily 
             WHERE date_id = '2023-08-01'
@@ -237,12 +237,12 @@ class TelecomDatabase:
             SELECT 
                 AVG(avg_satisfaction_score) as csat_score,
                 AVG(avg_nps_score) as nps_score,
-                AVG(avg_churn_rate) as churn_rate,
+                AVG(avg_churn_probability) as churn_rate,
                 AVG(avg_lifetime_value) as customer_lifetime_value,
-                AVG(avg_handling_time) as avg_response_time,
-                AVG(first_contact_resolution_rate) as first_contact_resolution,
-                AVG(avg_customer_effort_score) as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(avg_handling_time_minutes) as avg_response_time,
+                AVG(avg_first_contact_resolution) as first_contact_resolution,
+                0 as customer_effort_score,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_customer_experience_daily 
             WHERE date_id = '2023-08-01'
@@ -252,12 +252,12 @@ class TelecomDatabase:
             SELECT 
                 AVG(avg_satisfaction_score) * 0.98 as csat_score,
                 AVG(avg_nps_score) * 0.98 as nps_score,
-                AVG(avg_churn_rate) * 1.05 as churn_rate,
+                AVG(avg_churn_probability) * 1.05 as churn_rate,
                 AVG(avg_lifetime_value) * 0.98 as customer_lifetime_value,
-                AVG(avg_handling_time) * 1.02 as avg_response_time,
-                AVG(first_contact_resolution_rate) * 0.98 as first_contact_resolution,
-                AVG(avg_customer_effort_score) * 1.02 as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(avg_handling_time_minutes) * 1.02 as avg_response_time,
+                AVG(avg_first_contact_resolution) * 0.98 as first_contact_resolution,
+                0 as customer_effort_score,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_customer_experience_daily 
             WHERE date_id = '2023-08-01'
@@ -267,12 +267,12 @@ class TelecomDatabase:
             SELECT 
                 AVG(avg_satisfaction_score) * 0.95 as csat_score,
                 AVG(avg_nps_score) * 0.95 as nps_score,
-                AVG(avg_churn_rate) * 1.1 as churn_rate,
+                AVG(avg_churn_probability) * 1.1 as churn_rate,
                 AVG(avg_lifetime_value) * 0.95 as customer_lifetime_value,
-                AVG(avg_handling_time) * 1.05 as avg_response_time,
-                AVG(first_contact_resolution_rate) * 0.95 as first_contact_resolution,
-                AVG(avg_customer_effort_score) * 1.05 as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(avg_handling_time_minutes) * 1.05 as avg_response_time,
+                AVG(avg_first_contact_resolution) * 0.95 as first_contact_resolution,
+                0 as customer_effort_score,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_customer_experience_daily 
             WHERE date_id = '2023-08-01'
@@ -282,12 +282,12 @@ class TelecomDatabase:
             SELECT 
                 AVG(avg_satisfaction_score) as csat_score,
                 AVG(avg_nps_score) as nps_score,
-                AVG(avg_churn_rate) as churn_rate,
+                AVG(avg_churn_probability) as churn_rate,
                 AVG(avg_lifetime_value) as customer_lifetime_value,
-                AVG(avg_handling_time) as avg_response_time,
-                AVG(first_contact_resolution_rate) as first_contact_resolution,
-                AVG(avg_customer_effort_score) as customer_effort_score,
-                COUNT(DISTINCT region_id) as active_regions,
+                AVG(avg_handling_time_minutes) as avg_response_time,
+                AVG(avg_first_contact_resolution) as first_contact_resolution,
+                0 as customer_effort_score,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_customer_experience_daily 
             WHERE date_id = '2023-08-01'
@@ -305,13 +305,13 @@ class TelecomDatabase:
             query = """
             SELECT 
                 AVG(avg_arpu) as arpu,
-                AVG(avg_ebitda_margin) as ebitda_margin,
+                AVG(total_profit / NULLIF(total_revenue, 0) * 100.0) as ebitda_margin,
                 AVG(avg_cac) as customer_acquisition_cost,
                 AVG(avg_clv) as customer_lifetime_value,
                 AVG(avg_growth_rate) * 100 as revenue_growth,
                 AVG(avg_profit_margin) as profit_margin,
                 SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_revenue_daily 
             WHERE date_id = '2023-08-01'
@@ -320,13 +320,13 @@ class TelecomDatabase:
             query = """
             SELECT 
                 AVG(avg_arpu) * 0.98 as arpu,
-                AVG(avg_ebitda_margin) * 0.95 as ebitda_margin,
+                AVG(total_profit / NULLIF(total_revenue, 0) * 100.0) * 0.95 as ebitda_margin,
                 AVG(avg_cac) * 0.98 as customer_acquisition_cost,
                 AVG(avg_clv) * 0.98 as customer_lifetime_value,
                 AVG(avg_growth_rate) * 100 * 0.95 as revenue_growth,
                 AVG(avg_profit_margin) * 0.98 as profit_margin,
                 SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_revenue_daily 
             WHERE date_id = '2023-08-01'
@@ -335,13 +335,13 @@ class TelecomDatabase:
             query = """
             SELECT 
                 AVG(avg_arpu) * 0.95 as arpu,
-                AVG(avg_ebitda_margin) * 0.9 as ebitda_margin,
+                AVG(total_profit / NULLIF(total_revenue, 0) * 100.0) * 0.9 as ebitda_margin,
                 AVG(avg_cac) * 0.95 as customer_acquisition_cost,
                 AVG(avg_clv) * 0.95 as customer_lifetime_value,
                 AVG(avg_growth_rate) * 100 * 0.9 as revenue_growth,
                 AVG(avg_profit_margin) * 0.95 as profit_margin,
                 SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_revenue_daily 
             WHERE date_id = '2023-08-01'
@@ -350,13 +350,13 @@ class TelecomDatabase:
             query = """
             SELECT 
                 AVG(avg_arpu) as arpu,
-                AVG(avg_ebitda_margin) as ebitda_margin,
+                AVG(total_profit / NULLIF(total_revenue, 0) * 100.0) as ebitda_margin,
                 AVG(avg_cac) as customer_acquisition_cost,
                 AVG(avg_clv) as customer_lifetime_value,
                 AVG(avg_growth_rate) * 100 as revenue_growth,
                 AVG(avg_profit_margin) as profit_margin,
                 SUM(total_subscribers) as total_subscribers,
-                COUNT(DISTINCT region_id) as active_regions,
+                0 as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_revenue_daily 
             WHERE date_id = '2023-08-01'
@@ -447,9 +447,9 @@ class TelecomDatabase:
                 AVG(avg_resolution_rate) as support_ticket_resolution,
                 AVG(avg_uptime) as system_uptime,
                 AVG(avg_efficiency_score) as operational_efficiency_score,
-                AVG(avg_capex_ratio) as capex_to_revenue_ratio,
-                AVG(avg_productivity) as employee_productivity_score,
-                AVG(avg_automation_rate) as automation_rate,
+                AVG(avg_capex_amount) as capex_to_revenue_ratio,
+                AVG(avg_efficiency_score) as employee_productivity_score,
+                0 as automation_rate,
                 COUNT(DISTINCT region_id) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_operations_daily 
@@ -463,9 +463,9 @@ class TelecomDatabase:
                 AVG(avg_resolution_rate) * 0.98 as support_ticket_resolution,
                 AVG(avg_uptime) * 0.98 as system_uptime,
                 AVG(avg_efficiency_score) * 0.98 as operational_efficiency_score,
-                AVG(avg_capex_ratio) * 1.02 as capex_to_revenue_ratio,
-                AVG(avg_productivity) * 0.98 as employee_productivity_score,
-                AVG(avg_automation_rate) * 0.98 as automation_rate,
+                AVG(avg_capex_amount) * 1.02 as capex_to_revenue_ratio,
+                AVG(avg_efficiency_score) * 0.98 as employee_productivity_score,
+                0 as automation_rate,
                 COUNT(DISTINCT region_id) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_operations_daily 
@@ -479,9 +479,9 @@ class TelecomDatabase:
                 AVG(avg_resolution_rate) * 0.95 as support_ticket_resolution,
                 AVG(avg_uptime) * 0.95 as system_uptime,
                 AVG(avg_efficiency_score) * 0.95 as operational_efficiency_score,
-                AVG(avg_capex_ratio) * 1.05 as capex_to_revenue_ratio,
-                AVG(avg_productivity) * 0.95 as employee_productivity_score,
-                AVG(avg_automation_rate) * 0.95 as automation_rate,
+                AVG(avg_capex_amount) * 1.05 as capex_to_revenue_ratio,
+                AVG(avg_efficiency_score) * 0.95 as employee_productivity_score,
+                0 as automation_rate,
                 COUNT(DISTINCT region_id) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_operations_daily 
@@ -495,9 +495,9 @@ class TelecomDatabase:
                 AVG(avg_resolution_rate) as support_ticket_resolution,
                 AVG(avg_uptime) as system_uptime,
                 AVG(avg_efficiency_score) as operational_efficiency_score,
-                AVG(avg_capex_ratio) as capex_to_revenue_ratio,
-                AVG(avg_productivity) as employee_productivity_score,
-                AVG(avg_automation_rate) as automation_rate,
+                AVG(avg_capex_amount) as capex_to_revenue_ratio,
+                AVG(avg_efficiency_score) as employee_productivity_score,
+                0 as automation_rate,
                 COUNT(DISTINCT region_id) as active_regions,
                 COUNT(DISTINCT date_id) as days_with_data
             FROM vw_operations_daily 
@@ -512,8 +512,8 @@ class TelecomDatabase:
         """Get trend data for a specific metric"""
         # Security: Whitelist allowed metric names to prevent SQL injection
         allowed_metrics = [
-            'availability_percent', 'avg_latency_ms', 'avg_packet_loss_percent',
-            'avg_bandwidth_utilization_percent', 'avg_mttr_hours', 'avg_dropped_call_rate'
+            'availability_pct', 'latency_ms', 'packet_loss_pct',
+            'bandwidth_util_pct', 'mttr_hours', 'dropped_call_pct'
         ]
         
         if metric_name not in allowed_metrics:
@@ -537,8 +537,8 @@ class TelecomDatabase:
         """Get regional breakdown for a specific metric"""
         # Security: Whitelist allowed metric names to prevent SQL injection
         allowed_metrics = [
-            'availability_percent', 'avg_latency_ms', 'avg_packet_loss_percent',
-            'avg_bandwidth_utilization_percent', 'avg_mttr_hours', 'avg_dropped_call_rate'
+            'availability_pct', 'latency_ms', 'packet_loss_pct',
+            'bandwidth_util_pct', 'mttr_hours', 'dropped_call_pct'
         ]
         
         if metric_name not in allowed_metrics:
@@ -547,12 +547,11 @@ class TelecomDatabase:
         # Use parameterized query for days parameter
         query = f"""
         SELECT 
-            r.region_name,
+            v.region_name,
             AVG({metric_name}) as value
         FROM vw_network_metrics_daily v
-        JOIN dim_region r ON v.region_id = r.region_id
         WHERE v.date_id >= date('now', '-? days')
-        GROUP BY r.region_name
+        GROUP BY v.region_name
         ORDER BY value DESC
         """
         
@@ -568,16 +567,17 @@ class TelecomDatabase:
             SELECT 
                 r.region_name,
                 ce.date_id,
-                ce.avg_satisfaction_score as satisfaction,
-                ce.avg_nps_score as nps,
-                ce.avg_churn_rate as churn,
-                ce.avg_handling_time as handling_time,
-                ce.first_contact_resolution_rate as fcr,
-                ce.avg_customer_effort_score as effort_score,
-                ce.avg_lifetime_value as clv
-            FROM vw_customer_experience_daily ce
-            JOIN dim_region r ON ce.region_id = r.region_id
+                AVG(ce.satisfaction_score) as satisfaction,
+                AVG(ce.nps_score) as nps,
+                AVG(ce.churn_probability) as churn,
+                AVG(ce.handling_time_minutes) as handling_time,
+                AVG(ce.first_contact_resolution) as fcr,
+                AVG(ce.customer_effort_score) as effort_score,
+                AVG(ce.lifetime_value) as clv
+            FROM fact_customer_experience_view ce
+            JOIN dim_region_view r ON ce.region_id = r.region_id
             WHERE ce.date_id >= date('2023-08-01', '-30 days')
+            GROUP BY r.region_name, ce.date_id
             ORDER BY ce.date_id, r.region_name
             """
             
@@ -596,17 +596,18 @@ class TelecomDatabase:
             SELECT 
                 r.region_name,
                 rd.date_id,
-                rd.total_revenue,
-                rd.avg_arpu,
-                rd.avg_cac,
-                rd.avg_clv,
-                rd.avg_ebitda_margin,
-                rd.avg_profit_margin,
-                rd.total_subscribers,
-                rd.avg_growth_rate * 100 as growth_rate
-            FROM vw_revenue_daily rd
-            JOIN dim_region r ON rd.region_id = r.region_id
+                SUM(rd.revenue_amount) as total_revenue,
+                AVG(rd.arpu) as avg_arpu,
+                AVG(rd.customer_acquisition_cost) as avg_cac,
+                AVG(rd.customer_lifetime_value) as avg_clv,
+                AVG(rd.ebitda_margin) as avg_ebitda_margin,
+                AVG(rd.profit_margin) as avg_profit_margin,
+                SUM(rd.subscriber_count) as total_subscribers,
+                AVG(rd.subscriber_growth_rate) * 100 as growth_rate
+            FROM fact_revenue_view rd
+            JOIN dim_region_view r ON rd.region_id = r.region_id
             WHERE rd.date_id >= date('2023-08-01', '-30 days')
+            GROUP BY r.region_name, rd.date_id
             ORDER BY rd.date_id, r.region_name
             """
             
@@ -653,17 +654,18 @@ class TelecomDatabase:
             SELECT 
                 r.region_name,
                 op.date_id,
-                op.avg_response_time,
-                op.avg_compliance_rate,
-                op.avg_resolution_rate,
-                op.avg_uptime,
-                op.avg_efficiency_score,
-                op.avg_capex_ratio,
-                op.avg_productivity,
-                op.avg_automation_rate
-            FROM vw_operations_daily op
-            JOIN dim_region r ON op.region_id = r.region_id
+                AVG(op.service_response_time_hours) as avg_response_time,
+                AVG(op.regulatory_compliance_rate) as avg_compliance_rate,
+                AVG(op.support_ticket_resolution_rate) as avg_resolution_rate,
+                AVG(op.system_uptime_percentage) as avg_uptime,
+                AVG(op.operational_efficiency_score) as avg_efficiency_score,
+                AVG(op.capex_to_revenue_ratio) as avg_capex_ratio,
+                AVG(op.employee_productivity_score) as avg_productivity,
+                AVG(op.automation_rate) as avg_automation_rate
+            FROM fact_operations_view op
+            JOIN dim_region_view r ON op.region_id = r.region_id
             WHERE op.date_id >= date('2023-08-01', '-30 days')
+            GROUP BY r.region_name, op.date_id
             ORDER BY op.date_id, r.region_name
             """
             

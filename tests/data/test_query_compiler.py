@@ -27,3 +27,15 @@ def test_query_compiler_renders_sql_with_filters(tmp_path):
     assert "BETWEEN" in compiled.sql
     assert compiled.data_source_id == "sqlite_cache"
     assert compiled.dialect == "sqlite"
+
+
+def test_query_compiler_handles_auxiliary_metrics():
+    metadata_path = Path("metadata/dashboard_telco.yaml").resolve()
+    config = load_metadata(metadata_path)
+
+    compiler = QueryCompiler(config)
+    compiled = compiler.compile("metric_financial_summary")
+
+    assert "SELECT 'Total Revenue'" in compiled.sql
+    assert compiled.data_source_id == "sqlite_cache"
+    assert compiled.dialect == "sqlite"

@@ -208,7 +208,7 @@ kpis:
             r.region_name AS region,
             AVG(100.0 * f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds, 0)) AS availability_pct,
             MAX(100.0 * f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds, 0)) AS max_availability
-          FROM fact_network_metrics AS f
+          FROM fact_network_metrics_view AS f
           JOIN dim_region AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
             {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
@@ -250,7 +250,7 @@ kpis:
             f.date_id AS date,
             r.region_name AS region,
             AVG(f.latency_ms) AS latency_ms
-          FROM fact_network_metrics AS f
+          FROM fact_network_metrics_view AS f
           JOIN dim_region AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
             {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
@@ -291,7 +291,7 @@ kpis:
             f.date_id AS date,
             r.region_name AS region,
             AVG(f.packet_loss_percent) AS packet_loss_pct
-          FROM fact_network_metrics AS f
+          FROM fact_network_metrics_view AS f
           JOIN dim_region AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
             {% if filters.region %}AND r.region_name = {{ filters.region | quote }}{% endif %}
@@ -330,7 +330,7 @@ kpis:
           SELECT
             r.region_name AS region,
             AVG(f.bandwidth_utilization_percent) AS bandwidth_util_pct
-          FROM fact_network_metrics AS f
+          FROM fact_network_metrics_view AS f
           JOIN dim_region AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -368,7 +368,7 @@ kpis:
             f.date_id AS date,
             r.region_name AS region,
             AVG(f.dropped_call_rate) AS dropped_call_pct
-          FROM fact_network_metrics AS f
+          FROM fact_network_metrics_view AS f
           JOIN dim_region AS r ON r.region_id = f.region_id
           WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1, 2
@@ -492,7 +492,7 @@ kpis:
         sql: |
           SELECT
             date_id AS date,
-            AVG(avg_churn_rate) AS churn_pct
+            AVG(avg_churn_probability) AS churn_pct
           FROM vw_customer_experience_daily
           WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -521,7 +521,7 @@ kpis:
         sql: |
           SELECT
             date_id AS date,
-            AVG(avg_handling_time) AS aht_minutes
+            AVG(avg_handling_time_minutes) AS aht_minutes
           FROM vw_customer_experience_daily
           WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -550,7 +550,7 @@ kpis:
         sql: |
           SELECT
             date_id AS date,
-            AVG(first_contact_resolution_rate) AS fcr_pct
+            AVG(avg_first_contact_resolution) AS fcr_pct
           FROM vw_customer_experience_daily
           WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -634,7 +634,7 @@ kpis:
         sql: |
           SELECT
             date_id AS date,
-            AVG(avg_ebitda_margin) AS ebitda_margin_pct
+            AVG(avg_profit_margin) AS ebitda_margin_pct
           FROM vw_revenue_daily
           WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -897,7 +897,7 @@ kpis:
           SELECT
             o.date_id AS date,
             r.region_name AS region,
-            AVG(o.avg_response_time) AS response_time_hours
+            AVG(avg_response_time) AS response_time_hours
           FROM vw_operations_daily AS o
           JOIN dim_region_view AS r ON r.region_id = o.region_id
           WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
@@ -943,7 +943,7 @@ kpis:
         sql: |
           SELECT
             date_id AS date,
-            AVG(avg_capex_ratio) AS capex_ratio_pct
+            AVG(avg_capex_amount) AS capex_ratio_pct
           FROM vw_operations_daily
           WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
           GROUP BY 1
@@ -1163,7 +1163,7 @@ auxiliary_metrics:
       SELECT
         u.date_id AS date,
         r.region_name AS feature_name,
-        AVG(u.avg_feature_adoption) AS adoption_pct
+        AVG(avg_feature_adoption) AS adoption_pct
       FROM vw_usage_adoption_daily AS u
       JOIN dim_region_view AS r ON r.region_id = u.region_id
       WHERE u.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
@@ -1188,7 +1188,7 @@ auxiliary_metrics:
     sql: |
       SELECT
         r.region_name AS region,
-        AVG(o.avg_response_time) AS response_time_hours
+        AVG(avg_response_time) AS response_time_hours
       FROM vw_operations_daily AS o
       JOIN dim_region_view AS r ON r.region_id = o.region_id
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
@@ -1204,7 +1204,7 @@ auxiliary_metrics:
           ELSE 'High'
         END AS severity,
         COUNT(*) AS incident_count
-      FROM fact_operations AS o
+      FROM fact_operations_view AS o
       JOIN dim_region_view AS r ON r.region_id = o.region_id
       WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}
       GROUP BY 1, 2

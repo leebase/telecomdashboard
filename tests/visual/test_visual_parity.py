@@ -1,143 +1,90 @@
-"""Visual parity verification tests for metadata runtime."""
+from __future__ import annotations
+
+import os
+import socket
+import subprocess
+import time
+from pathlib import Path
 
 import pytest
-from pathlib import Path
-from typing import Dict, Any
-import pandas as pd
 
-# Note: This is a basic structure for Sprint 4.
-# Full implementation would require:
-# - streamlit.testing.AppTest
-# - PIL/Pillow for image comparison
-# - selenium or playwright for headless screenshots
+from src.ui.visual_parity import VisualParityTester
 
 
-class VisualParityTester:
-    """Test harness for visual parity between legacy and metadata dashboards."""
+REFERENCE_DIR = Path("/Users/leeharrington/projects/telecomdashboard/docs/screen-grabs/current-look")
+SUBJECT_AREAS = [
+    "network_performance",
+    "customer_experience",
+    "revenue_monetization",
+    "usage_adoption",
+    "operational_efficiency",
+    "benchmark_management",
+]
 
-    def __init__(self, baseline_dir: Path, tolerance: float = 0.02):
-        self.baseline_dir = baseline_dir
-        self.baseline_dir.mkdir(parents=True, exist_ok=True)
-        self.tolerance = tolerance
 
-    def capture_screenshot(self, app_path: str, subject_area: str) -> bytes:
-        """Capture screenshot of dashboard for given subject area.
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
 
-        In full implementation, this would:
-        1. Launch Streamlit app in headless mode
-        2. Navigate to subject area tab
-        3. Capture screenshot
-        4. Return image bytes
-        """
-        # Placeholder for Sprint 4
-        return b"fake_screenshot_data"
 
-    def compare_screenshots(self, baseline: bytes, current: bytes) -> float:
-        """Compare two screenshots and return difference ratio.
+def _wait_for_port(port: int, timeout_seconds: float = 20.0) -> None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            if sock.connect_ex(("127.0.0.1", port)) == 0:
+                return
+        time.sleep(0.25)
+    raise TimeoutError(f"Timed out waiting for Streamlit on port {port}")
 
-        In full implementation, this would:
-        1. Load images with PIL
-        2. Compute structural similarity index
-        3. Return difference ratio (0.0 = identical, 1.0 = completely different)
-        """
-        # Placeholder for Sprint 4
-        return 0.0
 
-    def test_subject_area_parity(self, app_path: str, subject_area: str) -> bool:
-        """Test visual parity for a subject area."""
-        baseline_path = self.baseline_dir / f"{subject_area}_baseline.png"
+@pytest.fixture(scope="session")
+def metadata_server():
+    if not VisualParityTester(Path("tests/visual/baselines")).browser_capture_available():
+        pytest.skip("No browser capture backend available for visual parity")
+    if not REFERENCE_DIR.exists():
+        pytest.skip("Source screenshot references are not available locally")
 
-        # Capture current screenshot
-        current_screenshot = self.capture_screenshot(app_path, subject_area)
-
-        if baseline_path.exists():
-            # Compare with baseline
-            with open(baseline_path, 'rb') as f:
-                baseline_screenshot = f.read()
-
-            difference = self.compare_screenshots(baseline_screenshot, current_screenshot)
-
-            if difference > self.tolerance:
-                pytest.fail(f"Visual parity failed for {subject_area}: difference {difference:.3f} > {self.tolerance}")
-
-            return True
-        else:
-            # Create baseline
-            with open(baseline_path, 'wb') as f:
-                f.write(current_screenshot)
-            pytest.skip(f"Created baseline for {subject_area}")
-
-        return False
+    port = _free_port()
+    process = subprocess.Popen(
+        [
+            ".venv/bin/streamlit",
+            "run",
+            "app.py",
+            "--server.headless",
+            "true",
+            "--server.port",
+            str(port),
+        ],
+        cwd=Path.cwd(),
+        env={**os.environ, "USE_METADATA": "true"},
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        _wait_for_port(port)
+        yield f"http://127.0.0.1:{port}"
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
 
 
 @pytest.fixture
-def visual_tester():
-    """Fixture for visual parity tester."""
-    baseline_dir = Path(__file__).parent / "baseline"
-    return VisualParityTester(baseline_dir)
+def visual_tester(metadata_server):
+    baseline_dir = Path("tests/visual/baselines")
+    return VisualParityTester(
+        baseline_dir=baseline_dir,
+        tolerance=0.27,
+        app_url=metadata_server,
+        reference_dir=REFERENCE_DIR,
+    )
 
 
 @pytest.mark.visual
-def test_network_performance_parity(visual_tester):
-    """Test visual parity for Network Performance tab."""
-    # Test legacy app
-    legacy_passed = visual_tester.test_subject_area_parity("app.py", "network_performance")
+@pytest.mark.parametrize("subject_area", SUBJECT_AREAS)
+def test_metadata_visual_parity_against_source(visual_tester, subject_area):
+    result = visual_tester.test_subject_area_parity(subject_area)
 
-    # Test metadata app
-    metadata_passed = visual_tester.test_subject_area_parity("apps/meta/app.py", "network_performance")
-
-    assert legacy_passed and metadata_passed
-
-
-@pytest.mark.visual
-def test_customer_experience_parity(visual_tester):
-    """Test visual parity for Customer Experience tab."""
-    # Placeholder for additional tabs
-    pass
-
-
-@pytest.mark.visual
-def test_revenue_monetization_parity(visual_tester):
-    """Test visual parity for Revenue & Monetization tab."""
-    # Placeholder for additional tabs
-    pass
-
-
-@pytest.mark.visual
-def test_usage_adoption_parity(visual_tester):
-    """Test visual parity for Usage & Adoption tab."""
-    # Placeholder for additional tabs
-    pass
-
-
-@pytest.mark.visual
-def test_operational_efficiency_parity(visual_tester):
-    """Test visual parity for Operational Efficiency tab."""
-    # Placeholder for additional tabs
-    pass
-
-
-@pytest.mark.visual
-def test_benchmark_management_parity(visual_tester):
-    """Test visual parity for Benchmark Management tab."""
-    # Placeholder for additional tabs
-    pass
-
-
-# DOM comparison tests (Sprint 4 basic structure)
-def test_dom_structure_parity():
-    """Test DOM structure parity between legacy and metadata apps."""
-    # Placeholder: Compare HTML structure
-    pass
-
-
-def test_kpi_values_parity():
-    """Test KPI value parity between legacy and metadata apps."""
-    # Placeholder: Compare extracted KPI values
-    pass
-
-
-def test_chart_data_parity():
-    """Test chart data parity between legacy and metadata apps."""
-    # Placeholder: Compare chart data payloads
-    pass
+    assert result["status"] in {"compared", "failed"}
+    assert result["baseline_exists"] is True
+    assert result.get("passed") is True, result

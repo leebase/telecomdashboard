@@ -48,7 +48,7 @@ filters:
     type: select
     label: Region
     data_source: sqlite_cache
-    sql: SELECT DISTINCT region_name FROM dim_region ORDER BY region_name
+    sql: SELECT DISTINCT region_name FROM dim_region_view ORDER BY region_name
     allow_blank: true
   subject_area:
     network_performance:
@@ -56,7 +56,7 @@ filters:
       type: multiselect
       label: Network Element
       data_source: sqlite_cache
-      sql: SELECT DISTINCT element_name FROM dim_network_element ORDER BY element_name
+      sql: SELECT DISTINCT element_name FROM dim_network_element_view ORDER BY element_name
       allow_blank: true
     customer_experience: []
     revenue_monetization: []
@@ -66,7 +66,7 @@ filters:
       type: select
       label: Operations Region
       data_source: sqlite_cache
-      sql: SELECT DISTINCT region_name FROM dim_region ORDER BY region_name
+      sql: SELECT DISTINCT region_name FROM dim_region_view ORDER BY region_name
       allow_blank: true
     benchmark_management: []
 subject_areas:
@@ -237,8 +237,8 @@ kpis:
     sql: "SELECT\n  f.date_id AS date,\n  r.region_name AS region,\n  AVG(100.0 *\
       \ f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds, 0)) AS availability_pct,\n\
       \  MAX(100.0 * f.uptime_seconds / NULLIF(f.uptime_seconds + f.downtime_seconds,\
-      \ 0)) AS max_availability\nFROM fact_network_metrics AS f\nJOIN dim_region AS\
-      \ r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
+      \ 0)) AS max_availability\nFROM fact_network_metrics_view AS f\nJOIN dim_region\
+      \ AS r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
       \ }} AND {{ date_range.end }}\n  {% if filters.region %}AND r.region_name =\
       \ {{ filters.region | quote }}{% endif %}\nGROUP BY 1, 2\n"
     dimensions:
@@ -280,10 +280,10 @@ kpis:
   - id: metric_network_latency
     data_source: sqlite_cache
     sql: "SELECT\n  f.date_id AS date,\n  r.region_name AS region,\n  AVG(f.latency_ms)\
-      \ AS latency_ms\nFROM fact_network_metrics AS f\nJOIN dim_region AS r ON r.region_id\
-      \ = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end\
-      \ }}\n  {% if filters.region %}AND r.region_name = {{ filters.region | quote\
-      \ }}{% endif %}\nGROUP BY 1, 2\n"
+      \ AS latency_ms\nFROM fact_network_metrics_view AS f\nJOIN dim_region AS r ON\
+      \ r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start }}\
+      \ AND {{ date_range.end }}\n  {% if filters.region %}AND r.region_name = {{\
+      \ filters.region | quote }}{% endif %}\nGROUP BY 1, 2\n"
     dimensions:
     - date
     - region
@@ -319,10 +319,10 @@ kpis:
   - id: metric_packet_loss
     data_source: sqlite_cache
     sql: "SELECT\n  f.date_id AS date,\n  r.region_name AS region,\n  AVG(f.packet_loss_percent)\
-      \ AS packet_loss_pct\nFROM fact_network_metrics AS f\nJOIN dim_region AS r ON\
-      \ r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start }}\
-      \ AND {{ date_range.end }}\n  {% if filters.region %}AND r.region_name = {{\
-      \ filters.region | quote }}{% endif %}\nGROUP BY 1, 2\n"
+      \ AS packet_loss_pct\nFROM fact_network_metrics_view AS f\nJOIN dim_region AS\
+      \ r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
+      \ }} AND {{ date_range.end }}\n  {% if filters.region %}AND r.region_name =\
+      \ {{ filters.region | quote }}{% endif %}\nGROUP BY 1, 2\n"
     dimensions:
     - date
     - region
@@ -357,8 +357,8 @@ kpis:
   - id: metric_bandwidth_util
     data_source: sqlite_cache
     sql: "SELECT\n  r.region_name AS region,\n  AVG(f.bandwidth_utilization_percent)\
-      \ AS bandwidth_util_pct\nFROM fact_network_metrics AS f\nJOIN dim_region AS\
-      \ r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
+      \ AS bandwidth_util_pct\nFROM fact_network_metrics_view AS f\nJOIN dim_region\
+      \ AS r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
       \ }} AND {{ date_range.end }}\nGROUP BY 1\n"
     dimensions:
     - region
@@ -392,8 +392,8 @@ kpis:
   - id: metric_dropped_calls
     data_source: sqlite_cache
     sql: "SELECT\n  f.date_id AS date,\n  r.region_name AS region,\n  AVG(f.dropped_call_rate)\
-      \ AS dropped_call_pct\nFROM fact_network_metrics AS f\nJOIN dim_region AS r\
-      \ ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
+      \ AS dropped_call_pct\nFROM fact_network_metrics_view AS f\nJOIN dim_region\
+      \ AS r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
       \ }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
     dimensions:
     - date
@@ -421,9 +421,9 @@ kpis:
   - id: metric_mttr
     data_source: sqlite_cache
     sql: "SELECT\n  f.date_id AS date,\n  r.region_name AS region,\n  AVG(f.mttr_hours)\
-      \ AS mttr_hours\nFROM fact_network_metrics AS f\nJOIN dim_region AS r ON r.region_id\
-      \ = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end\
-      \ }}\nGROUP BY 1, 2\n"
+      \ AS mttr_hours\nFROM fact_network_metrics_view AS f\nJOIN dim_region_view AS\
+      \ r ON r.region_id = f.region_id\nWHERE f.date_id BETWEEN {{ date_range.start\
+      \ }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
     dimensions:
     - date
     - region
@@ -508,9 +508,9 @@ kpis:
   metrics:
   - id: metric_churn
     data_source: sqlite_cache
-    sql: "SELECT\n  date_id AS date,\n  AVG(avg_churn_rate) AS churn_pct\nFROM vw_customer_experience_daily\n\
-      WHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}\nGROUP\
-      \ BY 1\n"
+    sql: "SELECT\n  date_id AS date,\n  AVG(avg_churn_probability) AS churn_pct\n\
+      FROM vw_customer_experience_daily\nWHERE date_id BETWEEN {{ date_range.start\
+      \ }} AND {{ date_range.end }}\nGROUP BY 1\n"
     dimensions:
     - date
     thresholds:
@@ -535,9 +535,9 @@ kpis:
   metrics:
   - id: metric_avg_handling_time
     data_source: sqlite_cache
-    sql: "SELECT\n  date_id AS date,\n  AVG(avg_handling_time) AS aht_minutes\nFROM\
-      \ vw_customer_experience_daily\nWHERE date_id BETWEEN {{ date_range.start }}\
-      \ AND {{ date_range.end }}\nGROUP BY 1\n"
+    sql: "SELECT\n  date_id AS date,\n  AVG(avg_handling_time_minutes) AS aht_minutes\n\
+      FROM vw_customer_experience_daily\nWHERE date_id BETWEEN {{ date_range.start\
+      \ }} AND {{ date_range.end }}\nGROUP BY 1\n"
     dimensions:
     - date
     thresholds:
@@ -562,7 +562,7 @@ kpis:
   metrics:
   - id: metric_fcr
     data_source: sqlite_cache
-    sql: "SELECT\n  date_id AS date,\n  AVG(first_contact_resolution_rate) AS fcr_pct\n\
+    sql: "SELECT\n  date_id AS date,\n  AVG(avg_first_contact_resolution) AS fcr_pct\n\
       FROM vw_customer_experience_daily\nWHERE date_id BETWEEN {{ date_range.start\
       \ }} AND {{ date_range.end }}\nGROUP BY 1\n"
     dimensions:
@@ -638,7 +638,7 @@ kpis:
   metrics:
   - id: metric_ebitda_margin
     data_source: sqlite_cache
-    sql: "SELECT\n  date_id AS date,\n  AVG(avg_ebitda_margin) AS ebitda_margin_pct\n\
+    sql: "SELECT\n  date_id AS date,\n  AVG(avg_profit_margin) AS ebitda_margin_pct\n\
       FROM vw_revenue_daily\nWHERE date_id BETWEEN {{ date_range.start }} AND {{ date_range.end\
       \ }}\nGROUP BY 1\n"
     dimensions:
@@ -858,9 +858,9 @@ kpis:
   metrics:
   - id: metric_service_response_time
     data_source: sqlite_cache
-    sql: "SELECT\n  o.date_id AS date,\n  r.region_name AS region,\n  AVG(o.avg_response_time)\
-      \ AS response_time_hours\nFROM vw_operations_daily AS o\nJOIN dim_region AS\
-      \ r ON r.region_id = o.region_id\nWHERE o.date_id BETWEEN {{ date_range.start\
+    sql: "SELECT\n  o.date_id AS date,\n  r.region_name AS region,\n  AVG(avg_response_time)\
+      \ AS response_time_hours\nFROM vw_operations_daily AS o\nJOIN dim_region_view\
+      \ AS r ON r.region_id = o.region_id\nWHERE o.date_id BETWEEN {{ date_range.start\
       \ }} AND {{ date_range.end }}\n  {% if filters.ops_region %}AND r.region_name\
       \ = {{ filters.ops_region | quote }}{% endif %}\nGROUP BY 1, 2\n"
   widgets:
@@ -896,7 +896,7 @@ kpis:
   metrics:
   - id: metric_capex_ratio
     data_source: sqlite_cache
-    sql: "SELECT\n  date_id AS date,\n  AVG(avg_capex_ratio) AS capex_ratio_pct\n\
+    sql: "SELECT\n  date_id AS date,\n  AVG(avg_capex_amount) AS capex_ratio_pct\n\
       FROM vw_operations_daily\nWHERE date_id BETWEEN {{ date_range.start }} AND {{\
       \ date_range.end }}\nGROUP BY 1\n"
   widgets:
@@ -970,7 +970,7 @@ kpis:
   - id: metric_benchmark_targets
     data_source: sqlite_cache
     sql: "SELECT\n  kpi_name,\n  peer_avg,\n  industry_avg,\n  unit,\n  direction,\n\
-      \  threshold_low,\n  threshold_high\nFROM benchmark_targets\n"
+      \  threshold_low,\n  threshold_high\nFROM benchmark_targets_view\n"
   widgets:
     primary:
       type: benchmark_table
@@ -991,27 +991,27 @@ auxiliary_metrics:
 - id: metric_benchmark_history
   data_source: sqlite_cache
   sql: "SELECT\n  kpi_name,\n  old_peer_avg,\n  new_peer_avg,\n  old_industry_avg,\n\
-    \  new_industry_avg,\n  changed_by,\n  changed_at\nFROM benchmark_history\nORDER\
-    \ BY changed_at DESC\n"
+    \  new_industry_avg,\n  changed_by,\n  changed_at\nFROM benchmark_history_view\n\
+    ORDER BY changed_at DESC\n"
 - id: metric_support_ticket_volume
   data_source: sqlite_cache
   sql: "SELECT\n  o.date_id AS date,\n  r.region_name AS region,\n  SUM(o.incident_count)\
     \ AS open_tickets,\n  SUM(o.incident_count * o.support_ticket_resolution_rate)\
-    \ AS resolved_tickets\nFROM fact_operations AS o\nJOIN dim_region AS r ON r.region_id\
-    \ = o.region_id\nWHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end\
-    \ }}\nGROUP BY 1, 2\n"
+    \ AS resolved_tickets\nFROM fact_operations_view AS o\nJOIN dim_region_view AS\
+    \ r ON r.region_id = o.region_id\nWHERE o.date_id BETWEEN {{ date_range.start\
+    \ }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
 - id: metric_customer_sentiment
   data_source: sqlite_cache
   sql: "SELECT\n  CASE\n    WHEN satisfaction_score >= 90 THEN 'Promoter'\n    WHEN\
     \ satisfaction_score >= 75 THEN 'Passive'\n    ELSE 'Detractor'\n  END AS sentiment_bucket,\n\
-    \  COUNT(*) AS responses\nFROM fact_customer_experience\nWHERE date_id BETWEEN\
+    \  COUNT(*) AS responses\nFROM fact_customer_experience_view\nWHERE date_id BETWEEN\
     \ {{ date_range.start }} AND {{ date_range.end }}\nGROUP BY 1\n"
 - id: metric_product_revenue_mix
   data_source: sqlite_cache
   sql: "SELECT\n  p.product_category AS product_family,\n  SUM(f.revenue_amount) AS\
-    \ revenue\nFROM fact_revenue AS f\nJOIN dim_product AS p ON p.product_id = f.product_id\n\
-    WHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}\nGROUP\
-    \ BY 1\n"
+    \ revenue\nFROM fact_revenue_view AS f\nJOIN dim_product_view AS p ON p.product_id\
+    \ = f.product_id\nWHERE f.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end\
+    \ }}\nGROUP BY 1\n"
 - id: metric_revenue_trend
   data_source: sqlite_cache
   sql: "SELECT\n  date_id AS date,\n  SUM(total_revenue) AS revenue\nFROM vw_revenue_daily\n\
@@ -1036,15 +1036,15 @@ auxiliary_metrics:
 - id: metric_plan_usage_mix
   data_source: sqlite_cache
   sql: "SELECT\n  p.product_type AS plan_type,\n  SUM(f.active_subscribers) AS subscribers,\n\
-    \  SUM(f.data_usage_gb) AS data_usage_gb\nFROM fact_usage_adoption AS f\nJOIN\
-    \ dim_product AS p ON p.product_id = f.product_id\nWHERE f.date_id BETWEEN {{\
-    \ date_range.start }} AND {{ date_range.end }}\nGROUP BY 1\n"
+    \  SUM(f.data_usage_gb) AS data_usage_gb\nFROM fact_usage_adoption_view AS f\n\
+    JOIN dim_product_view AS p ON p.product_id = f.product_id\nWHERE f.date_id BETWEEN\
+    \ {{ date_range.start }} AND {{ date_range.end }}\nGROUP BY 1\n"
 - id: metric_feature_adoption_trend
   data_source: sqlite_cache
-  sql: "SELECT\n  u.date_id AS date,\n  r.region_name AS feature_name,\n  AVG(u.avg_feature_adoption)\
-    \ AS adoption_pct\nFROM vw_usage_adoption_daily AS u\nJOIN dim_region AS r ON\
-    \ r.region_id = u.region_id\nWHERE u.date_id BETWEEN {{ date_range.start }} AND\
-    \ {{ date_range.end }}\nGROUP BY 1, 2\n"
+  sql: "SELECT\n  u.date_id AS date,\n  r.region_name AS feature_name,\n  AVG(avg_feature_adoption)\
+    \ AS adoption_pct\nFROM vw_usage_adoption_daily AS u\nJOIN dim_region_view AS\
+    \ r ON r.region_id = u.region_id\nWHERE u.date_id BETWEEN {{ date_range.start\
+    \ }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
 - id: metric_usage_distribution
   data_source: sqlite_cache
   sql: "SELECT\n  CASE\n    WHEN avg_data_usage < 2 THEN '0-2 GB'\n    WHEN avg_data_usage\
@@ -1054,17 +1054,17 @@ auxiliary_metrics:
     \ {{ date_range.end }}\nGROUP BY 1\nORDER BY usage_bucket\n"
 - id: metric_response_time_region
   data_source: sqlite_cache
-  sql: "SELECT\n  r.region_name AS region,\n  AVG(o.avg_response_time) AS response_time_hours\n\
-    FROM vw_operations_daily AS o\nJOIN dim_region AS r ON r.region_id = o.region_id\n\
+  sql: "SELECT\n  r.region_name AS region,\n  AVG(avg_response_time) AS response_time_hours\n\
+    FROM vw_operations_daily AS o\nJOIN dim_region_view AS r ON r.region_id = o.region_id\n\
     WHERE o.date_id BETWEEN {{ date_range.start }} AND {{ date_range.end }}\nGROUP\
     \ BY 1\n"
 - id: metric_incident_heatmap
   data_source: sqlite_cache
   sql: "SELECT\n  r.region_name AS region,\n  CASE\n    WHEN o.incident_count < 5\
     \ THEN 'Low'\n    WHEN o.incident_count < 10 THEN 'Moderate'\n    ELSE 'High'\n\
-    \  END AS severity,\n  COUNT(*) AS incident_count\nFROM fact_operations AS o\n\
-    JOIN dim_region AS r ON r.region_id = o.region_id\nWHERE o.date_id BETWEEN {{\
-    \ date_range.start }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
+    \  END AS severity,\n  COUNT(*) AS incident_count\nFROM fact_operations_view AS\
+    \ o\nJOIN dim_region_view AS r ON r.region_id = o.region_id\nWHERE o.date_id BETWEEN\
+    \ {{ date_range.start }} AND {{ date_range.end }}\nGROUP BY 1, 2\n"
 - id: metric_system_uptime_trend
   data_source: sqlite_cache
   sql: "SELECT\n  date_id AS date,\n  AVG(avg_uptime) AS system_uptime_pct\nFROM vw_operations_daily\n\
@@ -1200,6 +1200,8 @@ refresh:
   schedule:
     cron: '*/30 * * * *'
 metadata_sources:
-  generated_on: '2025-09-20'
+  changelog: docs/CHANGELOG.md
   generated_by: tools/generate_telco_metadata.py
-  source_version: Sprint 4
+  generator_version: deterministic-normalize-v1
+  generator_mode: normalize_existing_pack
+  source_pack_sha256: 9f1aa697d0cf6fa2d0b18273c29cae483ba91df5acffb362724b034551d5cf27

@@ -3,8 +3,11 @@
 import json
 import pytest
 import tempfile
+from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
+
+from PIL import Image
 
 from src.ui.visual_parity import VisualParityTester, DOMStructureAnalyzer
 
@@ -37,6 +40,17 @@ class TestVisualParityTester:
             assert isinstance(screenshot, bytes)
             assert b"test_area" in screenshot
 
+    def test_capture_screenshot_prefers_browser_backend_when_app_url_is_set(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_dir = Path(temp_dir) / "baselines"
+            tester = VisualParityTester(baseline_dir, app_url="http://example.com")
+
+            with patch.object(tester, "browser_capture_available", return_value=True):
+                with patch.object(tester, "_capture_browser_screenshot", return_value=b"browser_png"):
+                    screenshot = tester.capture_screenshot("test_area")
+
+            assert screenshot == b"browser_png"
+
     def test_compare_screenshots_identical(self):
         """Test screenshot comparison with identical images."""
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -61,6 +75,21 @@ class TestVisualParityTester:
 
             assert difference > 0.0
             assert isinstance(details, str)
+
+    def test_detect_capture_quality_issue_for_background_only_image(self):
+        """Background-only captures should be rejected before diffing."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_dir = Path(temp_dir) / "baselines"
+            tester = VisualParityTester(baseline_dir)
+
+            image = Image.new("RGB", (1600, 900), (6, 16, 35))
+            buffer = BytesIO()
+            image.save(buffer, format="PNG")
+
+            issue = tester._detect_capture_quality_issue(buffer.getvalue())
+
+            assert issue is not None
+            assert "background-only" in issue
 
     def test_test_subject_area_parity_create_baseline(self):
         """Test creating baseline for new subject area."""
@@ -114,6 +143,23 @@ class TestVisualParityTester:
                     assert result["status"] == "failed"
                     assert result["passed"] is False
                     assert result["difference_ratio"] == 0.05
+
+    def test_test_subject_area_parity_rejects_background_only_capture(self):
+        """Blank screenshots should fail rather than creating false proof output."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            baseline_dir = Path(temp_dir) / "baselines"
+            tester = VisualParityTester(baseline_dir)
+
+            image = Image.new("RGB", (1600, 900), (6, 16, 35))
+            buffer = BytesIO()
+            image.save(buffer, format="PNG")
+
+            with patch.object(tester, 'capture_screenshot', return_value=buffer.getvalue()):
+                result = tester.test_subject_area_parity("test_area")
+
+            assert result["status"] == "failed"
+            assert result["passed"] is False
+            assert "background-only" in result["message"]
 
     def test_get_baseline_info(self):
         """Test getting baseline information."""

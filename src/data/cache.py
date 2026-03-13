@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import io
 import sqlite3
 import threading
 import time
@@ -53,7 +54,7 @@ class TTLCache:
             return
 
         self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-        self._sqlite_conn = sqlite3.connect(str(self.sqlite_path))
+        self._sqlite_conn = sqlite3.connect(str(self.sqlite_path), check_same_thread=False)
 
         with self._sqlite_conn:
             self._sqlite_conn.execute("""
@@ -82,7 +83,7 @@ class TTLCache:
                 if time.time() - timestamp <= ttl_seconds:
                     try:
                         # Deserialize DataFrame (simplified - in practice use pickle or similar)
-                        data = pd.read_pickle(data_blob) if data_blob else pd.DataFrame()
+                        data = pd.read_pickle(io.BytesIO(data_blob)) if data_blob else pd.DataFrame()
                         entry = CacheEntry(data, timestamp, ttl_seconds, key)
                         self._cache[key] = entry
                     except Exception as e:
@@ -94,8 +95,11 @@ class TTLCache:
             return
 
         try:
-            # Serialize DataFrame (simplified)
-            data_blob = entry.data.to_pickle() if not entry.data.empty else None
+            data_blob = None
+            if not entry.data.empty:
+                buffer = io.BytesIO()
+                entry.data.to_pickle(buffer)
+                data_blob = buffer.getvalue()
             with self._sqlite_conn:
                 self._sqlite_conn.execute(
                     "INSERT OR REPLACE INTO cache (key, data, timestamp, ttl_seconds) VALUES (?, ?, ?, ?)",
@@ -181,8 +185,11 @@ class TTLCache:
 
     def __del__(self) -> None:
         """Cleanup SQLite connection."""
-        if self._sqlite_conn:
-            self._sqlite_conn.close()
+        try:
+            if self._sqlite_conn:
+                self._sqlite_conn.close()
+        except Exception:  # pragma: no cover - destructor safety
+            pass
 
 
 # Global cache instance

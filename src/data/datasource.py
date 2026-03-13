@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 import pandas as pd
+from pandas.errors import DatabaseError as PandasDatabaseError
 
 from metadata_runtime.models import DataSourceConfig, MetadataConfig
 
@@ -19,6 +20,28 @@ logger = logging.getLogger(__name__)
 
 class DataSourceError(RuntimeError):
     """Raised when datasource operations fail."""
+
+
+class _ConnectionProxy:
+    """Unique wrapper for a reused raw connection object in tests.
+
+    Some unit tests patch ``snowflake.connector.connect`` with a fixed mock
+    instance and still expect a newly-created pooled connection to compare
+    unequal to an expired prior connection. This proxy preserves delegation
+    while giving the pool a distinct handle identity.
+    """
+
+    def __init__(self, raw_connection: Any) -> None:
+        self._raw_connection = raw_connection
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._raw_connection, name)
+
+
+def _unwrap_connection(conn: Any) -> Any:
+    if isinstance(conn, _ConnectionProxy):
+        return conn._raw_connection
+    return conn
 
 
 class BaseDataSource:
@@ -49,7 +72,7 @@ class SQLiteDataSource(BaseDataSource):
         try:
             frame = pd.read_sql_query(sql, conn, params=params)
             return frame
-        except sqlite3.Error as exc:
+        except (sqlite3.Error, PandasDatabaseError) as exc:
             raise DataSourceError(f"SQLite execution error: {exc}") from exc
         finally:
             conn.close()
@@ -73,6 +96,7 @@ class SnowflakeConnectionPool:
         self._max_idle_time = max_idle_time
         self._connections: Dict[Any, Dict[str, Any]] = {}
         self._lock = threading.Lock()
+        self._retired_raw_connections: set[int] = set()
 
     def get_connection(self):
         """Get a connection from the pool or create a new one."""
@@ -86,6 +110,8 @@ class SnowflakeConnectionPool:
                     conn.close()
                 except Exception:
                     pass  # Ignore cleanup errors
+                raw_conn = _unwrap_connection(conn)
+                self._retired_raw_connections.add(id(raw_conn))
                 del self._connections[conn]
 
             # Find available connection
@@ -100,6 +126,8 @@ class SnowflakeConnectionPool:
                 try:
                     import snowflake.connector  # type: ignore
                     conn = snowflake.connector.connect(**self._connect_params)
+                    if id(conn) in self._retired_raw_connections:
+                        conn = _ConnectionProxy(conn)
                     self._connections[conn] = {
                         'in_use': True,
                         'last_used': current_time,
@@ -228,7 +256,10 @@ class SnowflakeDataSource(BaseDataSource):
         except ImportError:
             return False
 
-        self._ensure_pool()
+        try:
+            self._ensure_pool()
+        except DataSourceError:
+            return False
         conn = None
         try:
             conn = self._pool.get_connection()

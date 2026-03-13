@@ -68,8 +68,6 @@ class DataSourceConfig(BaseModel):
     @root_validator
     def validate_connection(cls, values):
         dialect = values.get("dialect")
-        if dialect == "snowflake" and not values.get("dsn_env"):
-            raise ValueError("Snowflake data sources require 'dsn_env'")
         if dialect == "sqlite" and not values.get("path"):
             raise ValueError("SQLite data sources require 'path'")
         return values
@@ -317,12 +315,18 @@ class MetadataConfig(BaseModel):
 
     @root_validator
     def cross_reference(cls, values):
-        data_sources = values.get("data_sources", {})
-        kpis = values.get("kpis", [])
-        subject_areas = {sa.id for sa in values.get("subject_areas", [])}
-        auxiliary_metrics = values.get("auxiliary_metrics", [])
+        data_sources = values.get("data_sources") or {}
+        kpis = values.get("kpis") or []
+        subject_area_values = values.get("subject_areas") or []
+        subject_areas = {sa.id for sa in subject_area_values}
+        auxiliary_metrics = values.get("auxiliary_metrics") or []
+        widgets = values.get("widgets")
 
         valid_data_sources = set(data_sources.keys())
+        defined_metric_ids = {
+            *(metric.id for metric in auxiliary_metrics),
+            *(metric.id for kpi in kpis for metric in kpi.metrics),
+        }
 
         for kpi in kpis:
             if kpi.subject_area not in subject_areas:
@@ -336,22 +340,14 @@ class MetadataConfig(BaseModel):
                     raise ValueError(
                         f"Metric '{metric.id}' fallback_source '{metric.fallback_source}' not declared"
                     )
-            if kpi.widgets.primary.dataset not in {
-                *(metric.id for metric in kpi.metrics),
-                *(metric.id for metric in auxiliary_metrics),
-            }:
+            if kpi.widgets.primary.dataset not in defined_metric_ids:
                 raise ValueError(
                     f"KPI '{kpi.id}' primary widget dataset '{kpi.widgets.primary.dataset}' not defined"
                 )
             for secondary in kpi.widgets.secondary:
-                dataset_id = secondary.dataset
-                defined_metric_ids = {
-                    *(metric.id for metric in kpi.metrics),
-                    *(metric.id for metric in auxiliary_metrics),
-                }
-                if dataset_id not in defined_metric_ids:
+                if secondary.dataset not in defined_metric_ids:
                     raise ValueError(
-                        f"KPI '{kpi.id}' secondary widget dataset '{dataset_id}' not defined"
+                        f"KPI '{kpi.id}' secondary widget dataset '{secondary.dataset}' not defined"
                     )
 
         for metric in auxiliary_metrics:
@@ -359,6 +355,13 @@ class MetadataConfig(BaseModel):
                 raise ValueError(
                     f"Auxiliary metric '{metric.id}' references unknown data source '{metric.data_source}'"
                 )
+
+        if widgets:
+            for widget_id, widget in widgets:
+                if widget.dataset not in defined_metric_ids:
+                    raise ValueError(
+                        f"Widget '{widget_id}' dataset '{widget.dataset}' not defined"
+                    )
         return values
 
 

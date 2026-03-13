@@ -408,10 +408,8 @@
     border: 0;
 }
 
-/* Hide Streamlit default elements */
-.stApp > div:first-child {
-    display: none;
-}
+/* Older Streamlit builds exposed a disposable first child here, but current
+   builds use it for the live app container. Do not hide it. */
 
 /* Custom metric card styling */
 .metric-card {

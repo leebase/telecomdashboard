@@ -87,7 +87,7 @@ class QueryCompiler:
         data_source = self._config.data_sources.get(data_source_id)
         if data_source is None:
             raise QueryCompilerError(f"Data source '{data_source_id}' not defined")
-        dialect = metric.dialect or data_source.dialect
+        dialect = getattr(metric, "dialect", None) or data_source.dialect
 
         rendered_sql = self._render_sql(metric, dialect, filters or {})
         return CompiledQuery(
@@ -95,7 +95,7 @@ class QueryCompiler:
             data_source_id=data_source_id,
             dialect=dialect,
             params={},
-            fallback_source_id=metric.fallback_source,
+            fallback_source_id=getattr(metric, "fallback_source", None),
         )
 
     def _render_sql(

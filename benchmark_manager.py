@@ -23,7 +23,7 @@ def render_benchmark_manager():
         edited_df = st.data_editor(
             benchmarks_df[['kpi_name', 'peer_avg', 'industry_avg', 'unit', 'direction', 'threshold_low', 'threshold_high']],
             num_rows="dynamic",
-            use_container_width=True
+            width="stretch"
         )
         
         # Save changes button
@@ -51,7 +51,7 @@ def render_benchmark_manager():
         if not history_df.empty:
             st.dataframe(
                 history_df[['kpi_name', 'old_peer_avg', 'new_peer_avg', 'old_industry_avg', 'new_industry_avg', 'changed_by', 'changed_at']],
-                use_container_width=True
+                width="stretch"
             )
         else:
             st.info("No benchmark changes recorded yet.")

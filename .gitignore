@@ -47,3 +47,9 @@ Thumbs.db
 # Security - Sensitive files
 *.pyc
 .venv/
+
+# Connie Book runtime artifacts
+connie-book/symphony-reference/
+connie-book/symphony-logs/
+connie-book/hourly-automation/runs/
+connie-book/hourly-automation/runtime.log

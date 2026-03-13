@@ -83,8 +83,8 @@ class ViewCreator:
                 product_category,
                 product_type,
                 price_monthly,
-                data_allowance_gb,
-                features
+                data_limit_gb AS data_allowance_gb,
+                CASE WHEN is_premium THEN 'premium' ELSE 'standard' END AS features
             FROM dim_product
         """
 
@@ -93,10 +93,10 @@ class ViewCreator:
                 employee_id,
                 employee_name,
                 department,
-                region_id,
                 role,
                 hire_date,
-                status
+                region_id,
+                CASE WHEN is_active THEN 'active' ELSE 'inactive' END AS status
             FROM dim_employee
         """
 
@@ -105,19 +105,20 @@ class ViewCreator:
                 channel_id,
                 channel_name,
                 channel_type,
-                region_id,
-                contact_info
+                channel_category,
+                is_digital,
+                cost_per_interaction
             FROM dim_channel
         """
 
         views['dim_customer_view'] = """
             SELECT
                 customer_id,
-                customer_name,
+                customer_type AS customer_name,
                 segment,
                 region_id,
-                signup_date,
-                status,
+                acquisition_date AS signup_date,
+                'active' AS status,
                 contract_type
             FROM dim_customer
         """
@@ -143,14 +144,16 @@ class ViewCreator:
                 date_id,
                 customer_id,
                 region_id,
+                channel_id,
                 satisfaction_score,
                 nps_score,
-                churn_rate,
-                avg_handling_time,
-                first_contact_resolution_rate,
-                lifetime_value,
-                support_tickets_opened,
-                support_tickets_resolved
+                churn_probability,
+                handling_time_minutes,
+                first_contact_resolution,
+                complaint_count,
+                escalation_count,
+                customer_effort_score,
+                lifetime_value
             FROM fact_customer_experience
         """
 
@@ -160,14 +163,18 @@ class ViewCreator:
                 customer_id,
                 product_id,
                 region_id,
+                channel_id,
                 revenue_amount,
-                cost_amount,
-                profit_amount,
                 arpu,
-                cac,
-                clv,
-                growth_rate,
-                profit_margin
+                customer_acquisition_cost,
+                customer_lifetime_value,
+                churn_revenue_loss,
+                upsell_revenue,
+                cross_sell_revenue,
+                ebitda_margin,
+                profit_margin,
+                subscriber_count,
+                subscriber_growth_rate
             FROM fact_revenue
         """
 
@@ -177,13 +184,17 @@ class ViewCreator:
                 customer_id,
                 product_id,
                 region_id,
-                active_subscribers,
                 data_usage_gb,
-                five_g_adoption_rate,
+                voice_minutes,
+                sms_count,
                 feature_adoption_rate,
-                service_penetration_rate,
+                five_g_adoption,
+                service_penetration,
                 app_usage_rate,
-                premium_adoption_rate
+                premium_service_adoption,
+                peak_usage_time,
+                average_session_duration,
+                active_subscribers
             FROM fact_usage_adoption
         """
 
@@ -192,14 +203,19 @@ class ViewCreator:
                 date_id,
                 region_id,
                 employee_id,
+                channel_id,
+                service_response_time_hours,
+                regulatory_compliance_rate,
+                support_ticket_resolution_rate,
+                system_uptime_percentage,
+                operational_efficiency_score,
+                capex_to_revenue_ratio,
+                employee_productivity_score,
+                cost_per_customer,
+                automation_rate,
+                training_completion_rate,
                 incident_count,
-                response_time_hours,
-                compliance_rate,
-                capex_amount,
-                opex_amount,
-                efficiency_score,
-                resolution_rate,
-                uptime_percentage
+                resolution_time_hours
             FROM fact_operations
         """
 
@@ -224,9 +240,9 @@ class ViewCreator:
                 f.date_id,
                 AVG(f.satisfaction_score) as avg_satisfaction_score,
                 AVG(f.nps_score) as avg_nps_score,
-                AVG(f.churn_rate) as avg_churn_rate,
-                AVG(f.avg_handling_time) as avg_handling_time,
-                AVG(f.first_contact_resolution_rate) as first_contact_resolution_rate,
+                AVG(f.churn_probability) as avg_churn_probability,
+                AVG(f.handling_time_minutes) as avg_handling_time_minutes,
+                AVG(f.first_contact_resolution) as avg_first_contact_resolution,
                 AVG(f.lifetime_value) as avg_lifetime_value
             FROM fact_customer_experience_view f
             GROUP BY f.date_id
@@ -236,13 +252,13 @@ class ViewCreator:
             SELECT
                 f.date_id,
                 SUM(f.revenue_amount) as total_revenue,
-                SUM(f.cost_amount) as total_cost,
-                SUM(f.profit_amount) as total_profit,
-                COUNT(DISTINCT f.customer_id) as total_subscribers,
+                SUM(f.customer_acquisition_cost) as total_cost,
+                SUM(f.revenue_amount - f.customer_acquisition_cost) as total_profit,
+                SUM(f.subscriber_count) as total_subscribers,
                 AVG(f.arpu) as avg_arpu,
-                AVG(f.cac) as avg_cac,
-                AVG(f.clv) as avg_clv,
-                AVG(f.growth_rate) as avg_growth_rate,
+                AVG(f.customer_acquisition_cost) as avg_cac,
+                AVG(f.customer_lifetime_value) as avg_clv,
+                AVG(f.subscriber_growth_rate) as avg_growth_rate,
                 AVG(f.profit_margin) as avg_profit_margin
             FROM fact_revenue_view f
             GROUP BY f.date_id
@@ -254,11 +270,11 @@ class ViewCreator:
                 r.region_id,
                 SUM(f.active_subscribers) as total_active_subscribers,
                 AVG(f.data_usage_gb) as avg_data_usage,
-                AVG(f.five_g_adoption_rate) as avg_five_g_adoption,
+                AVG(f.five_g_adoption) as avg_five_g_adoption,
                 AVG(f.feature_adoption_rate) as avg_feature_adoption,
-                AVG(f.service_penetration_rate) as avg_service_penetration,
+                AVG(f.service_penetration) as avg_service_penetration,
                 AVG(f.app_usage_rate) as avg_app_usage,
-                AVG(f.premium_adoption_rate) as avg_premium_adoption
+                AVG(f.premium_service_adoption) as avg_premium_adoption
             FROM fact_usage_adoption_view f
             JOIN dim_region_view r ON r.region_id = f.region_id
             GROUP BY f.date_id, r.region_id
@@ -268,12 +284,12 @@ class ViewCreator:
             SELECT
                 f.date_id,
                 r.region_id,
-                AVG(f.response_time_hours) as avg_response_time,
-                AVG(f.compliance_rate) as avg_compliance_rate,
-                AVG(f.capex_amount) as avg_capex_amount,
-                AVG(f.efficiency_score) as avg_efficiency_score,
-                AVG(f.resolution_rate) as avg_resolution_rate,
-                AVG(f.uptime_percentage) as avg_uptime,
+                AVG(f.service_response_time_hours) as avg_response_time,
+                AVG(f.regulatory_compliance_rate) as avg_compliance_rate,
+                AVG(f.capex_to_revenue_ratio) as avg_capex_amount,
+                AVG(f.operational_efficiency_score) as avg_efficiency_score,
+                AVG(f.support_ticket_resolution_rate) as avg_resolution_rate,
+                AVG(f.system_uptime_percentage) as avg_uptime,
                 SUM(f.incident_count) as total_incidents
             FROM fact_operations_view f
             JOIN dim_region_view r ON r.region_id = f.region_id
@@ -290,8 +306,7 @@ class ViewCreator:
                 direction,
                 threshold_low,
                 threshold_high,
-                last_updated,
-                updated_by
+                last_updated
             FROM benchmark_targets
         """
 
@@ -314,7 +329,6 @@ class ViewCreator:
         sql_statements = []
 
         for view_name, view_sql in views.items():
-            # SQLite view creation
             create_sql = f"CREATE VIEW IF NOT EXISTS {view_name} AS {view_sql.strip()}"
             sql_statements.append(create_sql)
 

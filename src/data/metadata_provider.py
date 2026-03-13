@@ -21,6 +21,7 @@ from metadata_runtime.models import (
     KpiMetricConfig,
     MetadataConfig,
     SecondaryWidgetConfig,
+    WidgetRegistryOverride,
 )
 
 logger = logging.getLogger(__name__)
@@ -74,9 +75,11 @@ class MetadataDataProvider:
         self._cache = get_cache(default_ttl=default_ttl, sqlite_path=sqlite_path)
 
         self._metric_index: Dict[str, KpiMetricConfig] = {}
+        self._metric_subject_area: Dict[str, str] = {}
         for kpi in config.kpis:
             for metric in kpi.metrics:
                 self._metric_index[metric.id] = metric
+                self._metric_subject_area[metric.id] = kpi.subject_area
         for metric in config.auxiliary_metrics:
             self._metric_index[metric.id] = metric
 
@@ -185,9 +188,19 @@ class MetadataDataProvider:
         return frame
 
     def build_kpi_payload(self, kpi: KpiConfig) -> Dict[str, Any]:
+        return self.build_kpi_payload_for_filters(kpi)
+
+    def build_kpi_payload_for_filters(
+        self,
+        kpi: KpiConfig,
+        runtime_filters: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, Any]:
         primary = kpi.widgets.primary
-        filters = self._resolve_default_filters(kpi.subject_area)
+        filters = self._merge_filters(self._resolve_default_filters(kpi.subject_area), runtime_filters)
         frame = self.get_metric_frame(primary.dataset, filters)
+        primary_metric = next((metric for metric in kpi.metrics if metric.id == primary.dataset), None)
+        if primary_metric is not None:
+            frame = self._normalize_kpi_frame(frame, primary_metric)
         value = self._evaluate_expression(frame, primary.value_expr)
         delta = self._evaluate_expression(frame, primary.delta_expr)
         decimals = primary.decimals if primary.decimals is not None else 2
@@ -207,8 +220,9 @@ class MetadataDataProvider:
         self,
         kpi: KpiConfig,
         chart: SecondaryWidgetConfig,
+        runtime_filters: Optional[Mapping[str, Any]] = None,
     ) -> Dict[str, Any]:
-        filters = self._resolve_default_filters(kpi.subject_area)
+        filters = self._merge_filters(self._resolve_default_filters(kpi.subject_area), runtime_filters)
         frame = self.get_metric_frame(chart.dataset, filters)
         transformed = self._transform_chart_frame(frame, chart)
         title = chart.encoding.get("title") if chart.encoding else None
@@ -216,7 +230,45 @@ class MetadataDataProvider:
             "title": title or kpi.title,
             "y_label": kpi.widgets.primary.unit or "Value",
             "dataframe": transformed,
+            "encoding": chart.encoding or {},
         }
+
+    def build_widget_payload(
+        self,
+        widget: WidgetRegistryOverride,
+        title: Optional[str] = None,
+        runtime_filters: Optional[Mapping[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        filters = self._merge_filters(self._resolve_filters_for_dataset(widget.dataset), runtime_filters)
+        frame = self.get_metric_frame(widget.dataset, filters)
+
+        if widget.columns:
+            selected_columns = [column for column in widget.columns if column in frame.columns]
+            if selected_columns:
+                frame = frame[selected_columns]
+
+        return {
+            "title": title,
+            "dataset": widget.dataset,
+            "dataframe": frame,
+            "encoding": widget.encoding or {},
+            "columns": widget.columns or [],
+        }
+
+    def _resolve_filters_for_dataset(self, dataset_id: str) -> Dict[str, Any]:
+        subject_area_id = self._metric_subject_area.get(dataset_id)
+        if not subject_area_id:
+            return {}
+        return self._resolve_default_filters(subject_area_id)
+
+    @staticmethod
+    def _merge_filters(defaults: Mapping[str, Any], overrides: Optional[Mapping[str, Any]]) -> Dict[str, Any]:
+        merged = dict(defaults)
+        if not overrides:
+            return merged
+        for key, value in overrides.items():
+            merged[key] = value
+        return merged
 
     def _evaluate_expression(self, frame: pd.DataFrame, expression: Optional[str]) -> Optional[float]:
         if frame.empty:
@@ -255,6 +307,15 @@ class MetadataDataProvider:
             return float(series.mean())
         return None
 
+    def _normalize_kpi_frame(self, frame: pd.DataFrame, metric: KpiMetricConfig) -> pd.DataFrame:
+        dimensions = list(getattr(metric, "dimensions", []) or [])
+        if "date" in dimensions and "date" in frame.columns and frame["date"].duplicated().any():
+            numeric_columns = frame.select_dtypes(include=["number"]).columns.tolist()
+            if not numeric_columns:
+                return frame
+            return frame.groupby("date", as_index=False)[numeric_columns].mean()
+        return frame
+
     def _transform_chart_frame(self, frame: pd.DataFrame, chart: SecondaryWidgetConfig) -> pd.DataFrame:
         encoding = chart.encoding or {}
         data = frame.copy()
@@ -291,12 +352,13 @@ class MetadataDataProvider:
         aliases = self._extract_aliases(metric.sql)
         if not aliases:
             aliases = ["value"]
+        dimensions = list(getattr(metric, "dimensions", []) or [])
 
         rows = []
         dates = pd.date_range(end=pd.Timestamp.utcnow().normalize(), periods=14)
-        regions = _REGIONS if "region" in metric.dimensions else [None]
+        regions = _REGIONS if "region" in dimensions else [None]
 
-        if "date" in metric.dimensions:
+        if "date" in dimensions:
             for dt in dates:
                 for region in regions:
                     row = {"date": dt}
@@ -312,7 +374,7 @@ class MetadataDataProvider:
             for category in categories:
                 row: Dict[str, Any] = {}
                 if category is not None:
-                    row["region" if "region" in metric.dimensions else "category"] = category
+                    row["region" if "region" in dimensions else "category"] = category
                 for alias in aliases:
                     row[alias] = round(rng.uniform(20, 100), 2)
                 rows.append(row)

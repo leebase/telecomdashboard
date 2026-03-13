@@ -20,6 +20,12 @@ def test_area_chart_renderer_available():
     assert callable(renderer)
 
 
+def test_telco_pack_renderers_available():
+    for widget_type in ["stacked_bar", "multi_series_line", "forecast_band", "heatmap"]:
+        renderer = get_widget_renderer(widget_type)
+        assert callable(renderer)
+
+
 def test_render_unknown_widget_raises():
     with pytest.raises(WidgetRegistryError):
         render_widget("non_existent", {})
