@@ -62,7 +62,7 @@ telco proof bar is actually met.
 | P1 | Add structural parity assertions | Done | `tests/ui/test_app_parity.py` compares tabs, headers, sidebar controls, and time selectors across legacy and metadata paths |
 | P1 | Add data parity assertions | Done | `tests/data/test_legacy_metadata_parity.py` compares metadata KPI outputs against the legacy SQLite rollups |
 | P2 | Replace mocked visual parity with real browser checks | Done | The harness now uses Playwright-backed real browser screenshots and the six-tab visual proof run passes locally |
-| P2 | Replace stub telco-pack generation with deterministic extraction or mapping | Partial | The generator now emits a deterministic normalized snapshot with stable provenance; true extraction or mapping from legacy/runtime sources remains open |
+| P2 | Replace stub telco-pack generation with deterministic extraction or mapping | Partial | The generator now emits a deterministic normalized snapshot with stable provenance and a machine-readable legacy tab inventory; true extraction or mapping from those runtime sources remains open |
 | P2 | Define the telco proof gate explicitly | Done | The sprint now includes a written pass/fail gate tied to validation, maintained tests, visible browser proof, and no placeholders |
 | P3 | Register or remove warning-noise in the maintained proof path | Done | `pytest.ini` now loads correctly, registers maintained markers, and the parity path no longer emits the earlier `use_container_width` deprecation noise during manual metadata runs |
 
@@ -262,6 +262,8 @@ Parallel workspace note:
 - The telco pack generator has moved from a dated stub to deterministic
   normalization, so the next generator step is deriving pack content from
   legacy/runtime inputs instead of only rewriting canonical YAML.
+- `docs/refactor/TELCO_GENERATOR_INPUTS.yaml` now captures the first concrete
+  legacy source inventory, beginning with the tab contract in `app.py`.
 
 ### Execution Plan
 

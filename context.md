@@ -43,6 +43,10 @@ automation and browser checks.
   step in `tools/generate_telco_metadata.py`, added focused tests in
   `tests/unit/test_generate_telco_metadata.py`, and regenerated
   `metadata/dashboard_telco_generated.yaml` with stable provenance metadata
+- Extended the telco generator with a first real legacy-input inventory pass:
+  `tools/generate_telco_metadata.py` can now extract tab labels from `app.py`
+  and write `docs/refactor/TELCO_GENERATOR_INPUTS.yaml` as the starting source
+  inventory for future pack derivation work
 - Validated the new Connie Book completion guard with a controlled replay:
   forcing `CON-6` back to `Done` now reopens it to `Todo` automatically and
   leaves a Linear comment when
@@ -186,8 +190,9 @@ automation and browser checks.
   remaining runtime gap is one clean `CON-6` artifact-producing run that leaves
   `AI_TOOL_ONBOARDING_GUIDE.md` in the live source tree without the guard
   needing to intervene
-- Hardening the telco pack generator beyond deterministic normalization so it
-  can evolve from stable rewrite into true legacy-aware extraction or mapping
+- Extending the telco pack generator from deterministic normalization into
+  broader legacy-aware extraction or mapping now that the first concrete source
+  inventory exists
 - Deciding when the telco proof is strong enough to start the Generalization
   Gate Sprint
 
@@ -212,9 +217,9 @@ automation and browser checks.
    first clean end-to-end run that writes the expected Connie Book artifact
    (`AI_TOOL_ONBOARDING_GUIDE.md`) back to the live source tree is still not
    complete.
-1. Telco pack generation is now deterministic, but it is still normalization of
-   the canonical pack rather than true extraction from the legacy dashboard
-   surface.
+1. Telco pack generation is now deterministic and has a first concrete source
+   inventory, but it is still normalization of the canonical pack rather than
+   true extraction from the legacy dashboard surface.
 
 ---
 
@@ -223,7 +228,7 @@ automation and browser checks.
 | Rank | Action | Owner | Done When |
 |------|--------|-------|-----------|
 | 0 | Let `CON-6` complete under the guarded workflow and verify the live artifact | Human or AI | `AI_TOOL_ONBOARDING_GUIDE.md` exists in `connie-book/`, Linear stays aligned, and the post-run guard does not need to reopen the issue |
-| 1 | Extend telco pack generation beyond deterministic normalization | Human or AI | The generator derives pack structure from legacy/runtime sources rather than only normalizing the canonical YAML |
+| 1 | Extend telco pack generation beyond deterministic normalization | Human or AI | The generator derives pack structure from legacy/runtime sources rather than only normalizing the canonical YAML; `docs/refactor/TELCO_GENERATOR_INPUTS.yaml` should be consumed instead of staying inventory-only |
 | 2 | Decide when to start the Generalization Gate Sprint | Human or AI | The local telco proof gate remains green and the next sprint boundary is documented |
 
 ---

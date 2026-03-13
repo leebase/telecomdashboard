@@ -52,7 +52,7 @@
 |-----------------|--------|--------|
 | Legacy/dashboard coupling remains visible in shell styling | The runtime still reuses legacy shell primitives even though the benchmark surface is now metadata-owned | 🟡 Active |
 | “Any dashboard” positioning is ahead of the evidence | Overclaim risk is high until telco parity is actually demonstrated | 🟡 Active |
-| Pack generation is only partially hardened | The generator is now deterministic and auditable, but it still normalizes the existing pack instead of extracting from legacy/runtime sources | 🟡 Active |
+| Pack generation is only partially hardened | The generator is now deterministic, auditable, and has a first inventory of legacy input surfaces, but it still normalizes the existing pack instead of extracting from those sources | 🟡 Active |
 | `connie-book/` can blur repo scope if left undocumented | A new in-repo planning workspace could be mistaken for part of the telco product unless kept explicitly separate | 🟡 Active |
 | `connie-book/` tracker-backed flow is not yet proven repeatable | Linear-backed Symphony now reaches repo-backed workspaces and false terminal closes are auto-corrected by a repo-owned `after_run` guard, but the first clean artifact-producing `CON-6` run is still incomplete | 🟡 Active |
 

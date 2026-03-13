@@ -51,6 +51,8 @@ metadata runtime via `ui.runtime_switch.is_metadata_enabled()`.
 - `metadata/dashboard_telco.yaml`: canonical telco proof pack
 - `tools/generate_telco_metadata.py`: deterministic telco pack normalization
   tool with stable provenance metadata
+- `docs/refactor/TELCO_GENERATOR_INPUTS.yaml`: machine-readable inventory of
+  the first legacy/runtime surfaces to fold into future pack generation
 - `scripts/create_views.py`: database-view support used by metadata/query tests
 
 ### Tests

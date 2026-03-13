@@ -2,6 +2,35 @@
 
 > Running log of completed work. Newest entries first.
 
+## 2026-03-12 — First Generator Input Inventory Captured From The Legacy App
+
+### What changed
+
+- Extended `tools/generate_telco_metadata.py` with an inventory mode that
+  extracts tab labels from `app.py`
+- Added inventory coverage to `tests/unit/test_generate_telco_metadata.py`
+- Wrote the first concrete generator-input artifact to
+  `docs/refactor/TELCO_GENERATOR_INPUTS.yaml`
+
+### What was verified
+
+1. `source .venv/bin/activate && pytest tests/unit/test_generate_telco_metadata.py -q` passes with the new inventory tests
+2. `source .venv/bin/activate && python tools/generate_telco_metadata.py --output metadata/dashboard_telco_generated.yaml --inventory-output docs/refactor/TELCO_GENERATOR_INPUTS.yaml --validate` passes
+
+### Why it matters
+
+The generator no longer has to start from a blank page when it moves beyond
+normalization. The legacy tab contract is now captured as machine-readable
+input, which is a concrete bridge between the legacy dashboard and future pack
+derivation.
+
+### Remaining follow-up
+
+- Expand the inventory beyond tabs into KPI, chart, and filter surfaces
+- Decide which inventoried surfaces should become the first extracted pack
+  fields
+- Move at least one inventory section from reporting into actual generation
+
 ## 2026-03-12 — Telco Pack Generator Hardened To Deterministic Normalization
 
 ### What changed

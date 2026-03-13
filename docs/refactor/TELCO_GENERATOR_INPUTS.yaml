@@ -1,0 +1,17 @@
+generator_inputs:
+  legacy_tabs:
+  - "\U0001F4E1 Network Performance"
+  - "\U0001F60A Customer Experience"
+  - "\U0001F4B0 Revenue & Monetization"
+  - "\U0001F4F6 Usage & Adoption"
+  - "\U0001F6E0\uFE0F Operational Efficiency"
+  - "\U0001F3AF Benchmark Management"
+  source_files:
+  - path: app.py
+    role: Legacy Streamlit tab contract and section headings
+  - path: benchmark_manager.py
+    role: Benchmark management tab structure and export/import affordances
+  - path: database_connection.py
+    role: Legacy KPI/query patterns that still inform proof-pack semantics
+  - path: scripts/create_views.py
+    role: SQLite view surface used by the maintained metadata proof path
