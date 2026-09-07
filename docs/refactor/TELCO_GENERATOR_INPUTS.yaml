@@ -6,6 +6,37 @@ generator_inputs:
   - "\U0001F4F6 Usage & Adoption"
   - "\U0001F6E0\uFE0F Operational Efficiency"
   - "\U0001F3AF Benchmark Management"
+  legacy_section_contracts:
+    network_performance:
+      function: render_network_performance
+      header: "\U0001F4E1 Network Performance & Reliability"
+      sections:
+      - "\U0001F4C8 Network Performance Trends"
+      - "\U0001F4D8 Detailed KPI Information"
+    customer_experience:
+      function: render_customer_experience
+      header: "\U0001F60A Customer Experience & Retention"
+      sections:
+      - "\U0001F4C8 Customer Experience Trends"
+      - "\U0001F4D8 Detailed KPI Information"
+    revenue_monetization:
+      function: render_revenue_monetization
+      header: "\U0001F4B0 Revenue & Monetization"
+      sections:
+      - "\U0001F4C8 Revenue Trends"
+      - "\U0001F4D8 Detailed KPI Information"
+    usage_adoption:
+      function: render_usage_adoption
+      header: "\U0001F4F6 Usage & Service Adoption"
+      sections:
+      - "\U0001F4C8 Usage Trends"
+      - "\U0001F4D8 Detailed KPI Information"
+    operational_efficiency:
+      function: render_operational_efficiency
+      header: "\U0001F6E0\uFE0F Operational Efficiency"
+      sections:
+      - "\U0001F4C8 Operational Trends"
+      - "\U0001F4D8 Detailed KPI Information"
   source_files:
   - path: app.py
     role: Legacy Streamlit tab contract and section headings

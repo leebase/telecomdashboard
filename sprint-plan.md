@@ -8,7 +8,7 @@
 
 **Name**: Telco Parity Proof Sprint  
 **Status**: Complete (local proof gate met)  
-**Last Updated**: 2026-03-12
+**Last Updated**: 2026-03-13
 
 ---
 
@@ -62,7 +62,7 @@ telco proof bar is actually met.
 | P1 | Add structural parity assertions | Done | `tests/ui/test_app_parity.py` compares tabs, headers, sidebar controls, and time selectors across legacy and metadata paths |
 | P1 | Add data parity assertions | Done | `tests/data/test_legacy_metadata_parity.py` compares metadata KPI outputs against the legacy SQLite rollups |
 | P2 | Replace mocked visual parity with real browser checks | Done | The harness now uses Playwright-backed real browser screenshots and the six-tab visual proof run passes locally |
-| P2 | Replace stub telco-pack generation with deterministic extraction or mapping | Partial | The generator now emits a deterministic normalized snapshot with stable provenance and a machine-readable legacy tab inventory; true extraction or mapping from those runtime sources remains open |
+| P2 | Replace stub telco-pack generation with deterministic extraction or mapping | Partial | The generator now emits a deterministic normalized snapshot, records the consumed `app.py` tab-contract provenance, applies legacy tab titles/order to `subject_areas`, and maps overlapping legacy section headings into generated layouts; deeper KPI/chart/filter extraction remains open |
 | P2 | Define the telco proof gate explicitly | Done | The sprint now includes a written pass/fail gate tied to validation, maintained tests, visible browser proof, and no placeholders |
 | P3 | Register or remove warning-noise in the maintained proof path | Done | `pytest.ini` now loads correctly, registers maintained markers, and the parity path no longer emits the earlier `use_container_width` deprecation noise during manual metadata runs |
 
@@ -183,8 +183,9 @@ Done when:
 - Project docs no longer depend on implied completion
 
 Status:
-- Partial on 2026-03-12; the proof gate is written and met locally, and pack
-  generation is now deterministic, but true extraction or mapping remains open
+- Partial on 2026-03-13; the proof gate is written and met locally, and pack
+  generation is now deterministic and legacy-aware for tabs and section
+  headings, but deeper extraction or mapping remains open
 
 ### Proposed Next Sprint Tasks
 

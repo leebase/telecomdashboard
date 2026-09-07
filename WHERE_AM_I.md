@@ -10,8 +10,8 @@
 |-----------|-------|
 | Project | telecom-metadata |
 | Current Phase | Telco Parity Proof Sprint |
-| Overall Status | 🟡 The local telco proof gate is now green through the metadata entry path, but architecture cleanup and generator hardening remain before broader claims; the separate `connie-book/` workspace is now wired to a live Linear-backed Symphony runtime, and its false-close path is now guarded while the first clean artifact-producing run is still underway |
-| Last Updated | 2026-03-12 |
+| Overall Status | 🟡 The local telco proof gate is now green through the metadata entry path, but architecture cleanup and deeper generator extraction still remain before broader claims; the separate `connie-book/` workspace is now wired to a live Linear-backed Symphony runtime, and its false-close path is now guarded while the first clean artifact-producing run is still underway |
+| Last Updated | 2026-03-13 |
 
 ---
 
@@ -52,7 +52,7 @@
 |-----------------|--------|--------|
 | Legacy/dashboard coupling remains visible in shell styling | The runtime still reuses legacy shell primitives even though the benchmark surface is now metadata-owned | 🟡 Active |
 | “Any dashboard” positioning is ahead of the evidence | Overclaim risk is high until telco parity is actually demonstrated | 🟡 Active |
-| Pack generation is only partially hardened | The generator is now deterministic, auditable, and has a first inventory of legacy input surfaces, but it still normalizes the existing pack instead of extracting from those sources | 🟡 Active |
+| Pack generation is only partially hardened | The generator is now deterministic, auditable, and consumes the legacy tab and section-heading contract for subject-area titles/order and overlapping section labels, but it still normalizes the existing pack instead of extracting KPI/chart/filter/deeper section content from those sources | 🟡 Active |
 | `connie-book/` can blur repo scope if left undocumented | A new in-repo planning workspace could be mistaken for part of the telco product unless kept explicitly separate | 🟡 Active |
 | `connie-book/` tracker-backed flow is not yet proven repeatable | Linear-backed Symphony now reaches repo-backed workspaces and false terminal closes are auto-corrected by a repo-owned `after_run` guard, but the first clean artifact-producing `CON-6` run is still incomplete | 🟡 Active |
 

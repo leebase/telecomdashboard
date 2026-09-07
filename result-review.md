@@ -2,6 +2,72 @@
 
 > Running log of completed work. Newest entries first.
 
+## 2026-03-13 — Telco Generator Now Consumes The Legacy Tab Contract
+
+### What changed
+
+- Extended `tools/generate_telco_metadata.py` so generation now applies the
+  real `app.py` tab contract to `subject_areas`, correcting titles and order
+  deterministically instead of leaving that information as inventory-only
+- Added provenance for the consumed legacy tab contract to the generated pack
+  in `metadata/dashboard_telco_generated.yaml`
+- Added focused mapping coverage in `tests/unit/test_generate_telco_metadata.py`
+
+### What was verified
+
+1. `source .venv/bin/activate && pytest tests/unit/test_generate_telco_metadata.py -q` passes with 5 tests
+2. `source .venv/bin/activate && python tools/generate_telco_metadata.py --output metadata/dashboard_telco_generated.yaml --inventory-output docs/refactor/TELCO_GENERATOR_INPUTS.yaml --validate` passes
+3. `source .venv/bin/activate && python -m metadata_cli validate metadata/dashboard_telco.yaml` passes
+
+### Why it matters
+
+The generator is no longer only reporting one legacy input surface; it is now
+using that surface to keep the generated pack aligned with the real dashboard
+tab contract. The remaining generator gap has narrowed to deeper extraction of
+KPI, chart, filter, and section content.
+
+### Remaining follow-up
+
+- Expand generation beyond tab titles/order into KPI, chart, filter, and
+  section extraction or mapping
+- Decide which inventoried legacy surfaces should be consumed next
+- Keep the generated snapshot aligned with the canonical telco pack as those
+  inputs harden
+
+## 2026-03-13 — Telco Generator Now Extracts Legacy Section Headings
+
+### What changed
+
+- Extended `tools/generate_telco_metadata.py` to parse the legacy
+  `render_*` functions in `app.py` and extract their `st.header(...)` and
+  `st.subheader(...)` contracts by subject area
+- Added those contracts to `docs/refactor/TELCO_GENERATOR_INPUTS.yaml`
+- Applied overlapping legacy section headings to
+  `metadata/dashboard_telco_generated.yaml` so generated section titles now
+  follow the source dashboard where the pack already has matching structure
+- Added focused coverage in `tests/unit/test_generate_telco_metadata.py`
+
+### What was verified
+
+1. `source .venv/bin/activate && pytest tests/unit/test_generate_telco_metadata.py -q` passes with 6 tests
+2. `source .venv/bin/activate && python tools/generate_telco_metadata.py --output metadata/dashboard_telco_generated.yaml --inventory-output docs/refactor/TELCO_GENERATOR_INPUTS.yaml --validate` passes
+3. `source .venv/bin/activate && python -m metadata_cli validate metadata/dashboard_telco.yaml` passes
+
+### Why it matters
+
+The generator is now consuming a second real legacy surface instead of just
+recording it. That reduces the amount of manually curated display structure in
+the generated pack and makes the remaining gap more specific: deeper KPI,
+chart, filter, and missing-section extraction.
+
+### Remaining follow-up
+
+- Extract KPI, chart, and filter structure from the legacy render functions
+- Decide whether the generator should surface missing legacy sections as drift
+  when the pack omits them
+- Keep the generated section titles aligned with the source contract as the
+  pack evolves
+
 ## 2026-03-12 — First Generator Input Inventory Captured From The Legacy App
 
 ### What changed

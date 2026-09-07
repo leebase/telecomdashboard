@@ -10,7 +10,7 @@
 |-----------|-------|
 | Phase | Metadata-runtime parity and proof |
 | Mode | 2 (Collaborative) |
-| Last Updated | 2026-03-12 |
+| Last Updated | 2026-03-13 |
 | Primary Runtime | `USE_METADATA=true streamlit run app.py` |
 | Secondary Runtime | `streamlit run apps/meta/app.py` |
 
@@ -47,6 +47,15 @@ automation and browser checks.
   `tools/generate_telco_metadata.py` can now extract tab labels from `app.py`
   and write `docs/refactor/TELCO_GENERATOR_INPUTS.yaml` as the starting source
   inventory for future pack derivation work
+- Extended the telco generator again so it now consumes the legacy `app.py`
+  tab contract during generation: subject-area titles and order are normalized
+  from the real tab sequence, the generated snapshot records the tab-contract
+  hash in provenance metadata, and focused coverage proves the mapping stays
+  deterministic
+- Extended the telco generator further so it now extracts legacy render-function
+  section contracts from `app.py`, records them in
+  `docs/refactor/TELCO_GENERATOR_INPUTS.yaml`, and applies overlapping section
+  headings to the generated subject-area layouts
 - Validated the new Connie Book completion guard with a controlled replay:
   forcing `CON-6` back to `Done` now reopens it to `Todo` automatically and
   leaves a Linear comment when
@@ -190,9 +199,9 @@ automation and browser checks.
   remaining runtime gap is one clean `CON-6` artifact-producing run that leaves
   `AI_TOOL_ONBOARDING_GUIDE.md` in the live source tree without the guard
   needing to intervene
-- Extending the telco pack generator from deterministic normalization into
-  broader legacy-aware extraction or mapping now that the first concrete source
-  inventory exists
+- Extending the telco pack generator beyond legacy tab and section mapping into
+  broader extraction or mapping of KPI, chart, filter, and deeper section
+  structure from legacy/runtime sources
 - Deciding when the telco proof is strong enough to start the Generalization
   Gate Sprint
 
@@ -217,9 +226,11 @@ automation and browser checks.
    first clean end-to-end run that writes the expected Connie Book artifact
    (`AI_TOOL_ONBOARDING_GUIDE.md`) back to the live source tree is still not
    complete.
-1. Telco pack generation is now deterministic and has a first concrete source
-   inventory, but it is still normalization of the canonical pack rather than
-   true extraction from the legacy dashboard surface.
+1. Telco pack generation is now deterministic and consumes the legacy tab and
+   section-heading contract for subject-area titles, ordering, and overlapping
+   section labels, but it still normalizes the canonical pack instead of
+   extracting KPI, chart, filter, and deeper section content directly from the
+   legacy dashboard surface.
 
 ---
 
@@ -228,7 +239,7 @@ automation and browser checks.
 | Rank | Action | Owner | Done When |
 |------|--------|-------|-----------|
 | 0 | Let `CON-6` complete under the guarded workflow and verify the live artifact | Human or AI | `AI_TOOL_ONBOARDING_GUIDE.md` exists in `connie-book/`, Linear stays aligned, and the post-run guard does not need to reopen the issue |
-| 1 | Extend telco pack generation beyond deterministic normalization | Human or AI | The generator derives pack structure from legacy/runtime sources rather than only normalizing the canonical YAML; `docs/refactor/TELCO_GENERATOR_INPUTS.yaml` should be consumed instead of staying inventory-only |
+| 1 | Extend telco pack generation beyond legacy tab and section mapping | Human or AI | The generator derives additional pack structure from legacy/runtime sources rather than only normalizing the canonical YAML; KPI/chart/filter/deeper section inputs should move from inventory into generation |
 | 2 | Decide when to start the Generalization Gate Sprint | Human or AI | The local telco proof gate remains green and the next sprint boundary is documented |
 
 ---

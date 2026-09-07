@@ -91,14 +91,14 @@ subject_areas:
         - kpi_card: kpi_dropped_call_rate
         - kpi_card: kpi_mttr
     - id: np_trends
-      title: Trends
+      title: "\U0001F4C8 Network Performance Trends"
       rows:
       - - chart: chart_latency_trend
         - chart: chart_uptime_trend
       - - chart: chart_bandwidth_region
         - chart: chart_packet_loss_trend
     - id: np_kpi_details
-      title: KPI Details
+      title: "\U0001F4D8 Detailed KPI Information"
       rows:
       - - widget: widget_network_kpi_expanders
 - id: customer_experience
@@ -121,7 +121,7 @@ subject_areas:
         - kpi_card: kpi_first_contact_resolution
         - kpi_card: kpi_customer_ltv
     - id: cx_trends
-      title: Trends & Sentiment
+      title: "\U0001F4C8 Customer Experience Trends"
       rows:
       - - chart: chart_nps_trend
         - chart: chart_support_tickets
@@ -146,13 +146,13 @@ subject_areas:
         - kpi_card: kpi_profit_margin
         - kpi_card: kpi_revenue_customer_ltv
     - id: rev_trends
-      title: Trends
+      title: "\U0001F4C8 Revenue Trends"
       rows:
       - - chart: chart_revenue_trend
         - chart: chart_product_mix
       - - chart: chart_revenue_forecast
     - id: rev_tables
-      title: Detail
+      title: "\U0001F4D8 Detailed KPI Information"
       rows:
       - - chart: chart_financial_table
 - id: usage_adoption
@@ -175,7 +175,7 @@ subject_areas:
         - kpi_card: kpi_app_usage
         - kpi_card: kpi_premium_adoption
     - id: ua_trends
-      title: Trends
+      title: "\U0001F4C8 Usage Trends"
       rows:
       - - chart: chart_plan_usage_mix
         - chart: chart_feature_adoption_trend
@@ -201,7 +201,7 @@ subject_areas:
         - kpi_card: kpi_ticket_resolution
         - kpi_card: kpi_system_uptime
     - id: ops_trends
-      title: Trends
+      title: "\U0001F4C8 Operational Trends"
       rows:
       - - chart: chart_response_time_region
         - chart: chart_incident_heatmap
@@ -1202,6 +1202,7 @@ refresh:
 metadata_sources:
   changelog: docs/CHANGELOG.md
   generated_by: tools/generate_telco_metadata.py
-  generator_version: deterministic-normalize-v1
-  generator_mode: normalize_existing_pack
+  generator_version: deterministic-normalize-v3
+  generator_mode: normalize_existing_pack_with_legacy_tab_contract
   source_pack_sha256: 9f1aa697d0cf6fa2d0b18273c29cae483ba91df5acffb362724b034551d5cf27
+  legacy_tab_contract_sha256: 5987a5693c42e4d4ed3b7dc59b3fb740f70336bf27fd6e133604299d4da06e90
